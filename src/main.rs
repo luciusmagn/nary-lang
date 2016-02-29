@@ -1,7 +1,7 @@
 use std::env;
 use std::fs::File;
 use std::io::prelude::*;
-use std::fmt::Debug;
+use std::fmt::Display;
 
 mod engine;
 use engine::Engine;
@@ -20,10 +20,6 @@ mod parser;
 // * Remove empty box values?
 // * Method/dot access
 // * Comparison ops
-
-fn showit<T: Debug>(x: &mut T) -> () {
-    println!("{:?}", x)
-}
 
 /*
 fn simple_fn(x: i32) -> bool { x == 1 }
@@ -172,6 +168,10 @@ fn test_var_scope() {
     else {
         assert!(false);
     }
+}
+
+fn showit<T: Display>(x: &mut T) -> () {
+    println!("{}", x)
 }
 
 fn main() {
