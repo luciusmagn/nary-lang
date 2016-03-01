@@ -7,6 +7,48 @@ pub trait FnRegister {
     fn register(self, engine: &mut Engine, name: &str);
 }
 
+impl<T: Any+Clone, U: Any+Clone, V: Any+Clone, W: Any+Clone> FnRegister for fn(&mut T, U, V)->W {
+    fn register(self, engine: &mut Engine, name: &str) {
+        let wrapped : Box<Fn(&mut Box<Any>, &mut Box<Any>, &mut Box<Any>)->Result<Box<Any>, EvalError>> = 
+            Box::new(
+                move |x: &mut Box<Any>, y: &mut Box<Any>, z: &mut Box<Any>| {
+                    let inside1 = (*x).downcast_mut() as Option<&mut T>;
+                    let inside2 = (*y).downcast_mut() as Option<&mut U>;
+                    let inside3 = (*z).downcast_mut() as Option<&mut V>;
+                    
+                    match (inside1, inside2, inside3) {
+                        (Some(b), Some(c), Some(d)) => Ok(Box::new(self(b, c.clone(), d.clone())) as Box<Any>),
+                        _ => Err(EvalError::FunctionArgMismatch)
+                    }
+                }
+            );
+
+        let ent = engine.fns_arity_3.entry(name.to_string()).or_insert(Vec::new());
+        (*ent).push(wrapped);
+    }
+}
+
+impl<T: Any+Clone, U: Any+Clone, V: Any+Clone, W: Any+Clone> FnRegister for fn(T, U, V)->W {
+    fn register(self, engine: &mut Engine, name: &str) {
+        let wrapped : Box<Fn(&mut Box<Any>, &mut Box<Any>, &mut Box<Any>)->Result<Box<Any>, EvalError>> = 
+            Box::new(
+                move |x: &mut Box<Any>, y: &mut Box<Any>, z: &mut Box<Any>| {
+                    let inside1 = (*x).downcast_mut() as Option<&mut T>;
+                    let inside2 = (*y).downcast_mut() as Option<&mut U>;
+                    let inside3 = (*z).downcast_mut() as Option<&mut V>;
+                    
+                    match (inside1, inside2, inside3) {
+                        (Some(b), Some(c), Some(d)) => Ok(Box::new(self(b.clone(), c.clone(), d.clone())) as Box<Any>),
+                        _ => Err(EvalError::FunctionArgMismatch)
+                    }
+                }
+            );
+
+        let ent = engine.fns_arity_3.entry(name.to_string()).or_insert(Vec::new());
+        (*ent).push(wrapped);
+    }
+}
+
 impl<T: Any+Clone, U: Any+Clone, V: Any+Clone> FnRegister for fn(&mut T, U)->V {
     fn register(self, engine: &mut Engine, name: &str) {
         let wrapped : Box<Fn(&mut Box<Any>, &mut Box<Any>)->Result<Box<Any>, EvalError>> = 

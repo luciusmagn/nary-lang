@@ -6,7 +6,6 @@ use std::fmt;
 
 use parser::{lex, parse, Expr, Stmt };
 use fn_register::FnRegister;
-//use ops::{add_boxes, sub_boxes, mult_boxes, div_boxes};
 
 use std::ops::{Add, Sub, Mul, Div};
 use std::cmp::{Ord, Eq};
@@ -91,6 +90,7 @@ fn or(x: bool, y: bool) -> bool {
 }
 
 pub struct Engine {
+    pub fns_arity_3: HashMap<String, Vec<Box<Fn(&mut Box<Any>, &mut Box<Any>, &mut Box<Any>)->Result<Box<Any>, EvalError>>>>,
     pub fns_arity_2: HashMap<String, Vec<Box<Fn(&mut Box<Any>, &mut Box<Any>)->Result<Box<Any>, EvalError>>>>,
     pub fns_arity_1: HashMap<String, Vec<Box<Fn(&mut Box<Any>)->Result<Box<Any>, EvalError>>>>,
     pub fns_arity_0: HashMap<String, Vec<Box<Fn()->Result<Box<Any>, EvalError>>>>,
@@ -98,8 +98,8 @@ pub struct Engine {
 }
 
 impl Engine {
-    pub fn call_fn_0_arg(&self, name: &str) -> Result<Box<Any>, EvalError> {
-        match self.fns_arity_0.get(name) {
+    pub fn call_fn_0_arg(fns_arity_0: &HashMap<String, Vec<Box<Fn()->Result<Box<Any>, EvalError>>>>, name: &str) -> Result<Box<Any>, EvalError> {
+        match fns_arity_0.get(name) {
             Some(vf) => {
                 for f in vf {
                     let invoke = f();
@@ -114,8 +114,10 @@ impl Engine {
         }
     }
 
-    pub fn call_fn_1_arg(&self, name: &str, arg1: &mut Box<Any>) -> Result<Box<Any>, EvalError> {
-        match self.fns_arity_1.get(name) {
+    pub fn call_fn_1_arg(fns_arity_1: &HashMap<String, Vec<Box<Fn(&mut Box<Any>)->Result<Box<Any>, EvalError>>>>, 
+        name: &str, arg1: &mut Box<Any>) -> Result<Box<Any>, EvalError> {
+        
+        match fns_arity_1.get(name) {
             Some(vf) => {
                 for f in vf {
                     let invoke = f(arg1);
@@ -130,11 +132,31 @@ impl Engine {
         }
     }
 
-    pub fn call_fn_2_arg(&self, name: &str, arg1: &mut Box<Any>, arg2: &mut Box<Any>) -> Result<Box<Any>, EvalError> {
-        match self.fns_arity_2.get(name) {
+    pub fn call_fn_2_arg(fns_arity_2: &HashMap<String, Vec<Box<Fn(&mut Box<Any>, &mut Box<Any>)->Result<Box<Any>, EvalError>>>>, 
+        name: &str, arg1: &mut Box<Any>, arg2: &mut Box<Any>) -> Result<Box<Any>, EvalError> {
+        
+        match fns_arity_2.get(name) {
             Some(vf) => {
                 for f in vf {
                     let invoke = f(arg1, arg2);
+                    match invoke {
+                        Ok(v) => return Ok(v),
+                        _ => ()
+                    }
+                };
+                Err(EvalError::FunctionArgMismatch)
+            }
+            None => Err(EvalError::FunctionNotFound)
+        }
+    }
+
+    pub fn call_fn_3_arg(fns_arity_3: &HashMap<String, Vec<Box<Fn(&mut Box<Any>, &mut Box<Any>, &mut Box<Any>)->Result<Box<Any>, EvalError>>>>, 
+        name: &str, arg1: &mut Box<Any>, arg2: &mut Box<Any>, arg3: &mut Box<Any>) -> Result<Box<Any>, EvalError> {
+        
+        match fns_arity_3.get(name) {
+            Some(vf) => {
+                for f in vf {
+                    let invoke = f(arg1, arg2, arg3);
                     match invoke {
                         Ok(v) => return Ok(v),
                         _ => ()
@@ -196,20 +218,61 @@ impl Engine {
                     _ => Err(EvalError::VariableNotFound)
                 }
             }
-            Expr::Call(ref fn_name, ref args) => {
+            Expr::FnCall(ref fn_name, ref args) => {
                 if args.len() == 0 {
-                    self.call_fn_0_arg(&fn_name)
+                    Engine::call_fn_0_arg(&self.fns_arity_0, &fn_name)
                 }
                 else if args.len() == 1 {
                     let mut arg = try!(self.eval_expr(&args[0]));
 
-                    self.call_fn_1_arg(&fn_name, &mut arg)
+                    Engine::call_fn_1_arg(&self.fns_arity_1, &fn_name, &mut arg)
                 }
                 else if args.len() == 2 {
                     let mut arg1 = try!(self.eval_expr(&args[0]));
                     let mut arg2 = try!(self.eval_expr(&args[1]));
 
-                    self.call_fn_2_arg(&fn_name, &mut arg1, &mut arg2)
+                    Engine::call_fn_2_arg(&self.fns_arity_2, &fn_name, &mut arg1, &mut arg2)
+                }
+                else if args.len() == 3 {
+                    let mut arg1 = try!(self.eval_expr(&args[0]));
+                    let mut arg2 = try!(self.eval_expr(&args[1]));
+                    let mut arg3 = try!(self.eval_expr(&args[1]));
+
+                    Engine::call_fn_3_arg(&self.fns_arity_3, &fn_name, &mut arg1, &mut arg2, &mut arg3)
+                }
+                else {
+                    Err(EvalError::FunctionCallNotSupported)
+                }
+            }
+            Expr::MethodCall(ref target, ref fn_name, ref args) => {
+                if args.len() == 0 {
+                    for &mut (ref name, ref mut val) in &mut self.scope.iter_mut().rev() {
+                        if *target == *name {
+                            return Engine::call_fn_1_arg(&self.fns_arity_1, &fn_name, val);
+                        }
+                    }
+                    Err(EvalError::VariableNotFound)
+                }
+                else if args.len() == 1 {
+                    let mut arg = try!(self.eval_expr(&args[0]));
+
+                    for &mut (ref name, ref mut val) in &mut self.scope.iter_mut().rev() {
+                        if *target == *name {
+                            return Engine::call_fn_2_arg(&self.fns_arity_2, &fn_name, val, &mut arg);
+                        }
+                    }
+                    Err(EvalError::VariableNotFound)
+                }
+                else if args.len() == 2 {
+                    let mut arg1 = try!(self.eval_expr(&args[0]));
+                    let mut arg2 = try!(self.eval_expr(&args[1]));
+
+                    for &mut (ref name, ref mut val) in &mut self.scope.iter_mut().rev() {
+                        if *target == *name {
+                            return Engine::call_fn_3_arg(&self.fns_arity_3, &fn_name, val, &mut arg1, &mut arg2);
+                        }
+                    }
+                    Err(EvalError::VariableNotFound)
                 }
                 else {
                     Err(EvalError::FunctionCallNotSupported)
@@ -295,8 +358,19 @@ impl Engine {
         let tree = parse(&mut peekables);
 
         match tree {
-            Ok(os) => {
+            Ok((ref os, ref fns)) => {
                 let mut x: Result<Box<Any>, EvalError> = Ok(Box::new(()));
+                for f in fns {
+                    if f.params.len() == 0 {
+                        let local_f = f.clone();
+                        let ent = self.fns_arity_0.entry(local_f.name).or_insert(Vec::new());
+                        let wrapped : Box<Fn()->Result<Box<Any>, EvalError>> = 
+                            Box::new(move || { Ok(Box::new(0)) } );
+                        //move || { self.eval_stmt(&local_f.body) } 
+                        (*ent).push(wrapped);
+                    }
+                }
+
                 for o in os {
                     x = self.eval_stmt(&o)
                 }
@@ -342,8 +416,8 @@ impl Engine {
         reg_cmp!(engine, "<=", lte, i32, i64, u32, u64);
         reg_cmp!(engine, ">", gt, i32, i64, u32, u64);
         reg_cmp!(engine, ">=", gte, i32, i64, u32, u64);
-        reg_cmp!(engine, "==", eq, i32, i64, u32, u64);
-        reg_cmp!(engine, "!=", ne, i32, i64, u32, u64);
+        reg_cmp!(engine, "==", eq, i32, i64, u32, u64, bool);
+        reg_cmp!(engine, "!=", ne, i32, i64, u32, u64, bool);
 
         reg_op!(engine, "||", or, bool);
         reg_op!(engine, "&&", and, bool);
@@ -354,6 +428,7 @@ impl Engine {
             fns_arity_0: HashMap::new(), 
             fns_arity_1: HashMap::new(), 
             fns_arity_2: HashMap::new(), 
+            fns_arity_3: HashMap::new(), 
             scope: Vec::new() 
         };
 
@@ -463,4 +538,35 @@ fn test_var_scope() {
     }
 }
 
+#[test]
+fn test_method_call() {
+    #[derive(Debug, Clone)]
+    struct TestStruct {
+        x: i32
+    }
 
+    impl TestStruct {
+        fn update(&mut self) {
+            self.x += 1000;
+        }
+
+        fn new() -> TestStruct {
+            TestStruct { x: 1 }
+        }
+    }
+
+    let mut engine = Engine::new();
+
+    engine.register_type::<TestStruct>();
+
+    &(TestStruct::update as fn(&mut TestStruct)->()).register(&mut engine, "update");
+    &(TestStruct::new as fn()->TestStruct).register(&mut engine, "new_ts");
+
+    if let Ok(result) = engine.eval("var x = new_ts(); x.update(); x".to_string()).unwrap().downcast::<TestStruct>() {
+        assert_eq!(result.x, 1001);
+    }
+    else {
+        assert!(false);
+    }
+
+}
