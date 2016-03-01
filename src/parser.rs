@@ -46,13 +46,12 @@ pub enum Stmt { If(Box<Expr>, Box<Stmt>), While(Box<Expr>, Box<Stmt>), Var(Strin
     Block(Box<Vec<Stmt>>), Expr(Box<Expr>) }
 
 #[derive(Debug)]
-pub enum Expr { IntConst(i32), Identifier(String), Plus(Box<Expr>, Box<Expr>), Minus(Box<Expr>, Box<Expr>), 
-    Multiply(Box<Expr>, Box<Expr>), Divide(Box<Expr>, Box<Expr>), Call(String, Box<Vec<Expr>>),
-    Assignment(Box<Expr>, Box<Expr>), True, False }
+pub enum Expr { IntConst(i32), Identifier(String), Call(String, Box<Vec<Expr>>), Assignment(Box<Expr>, Box<Expr>), True, False }
 
 #[derive(Debug)]
 pub enum Token { Int(i32), Id(String), LCurly, RCurly, LParen, RParen, LSquare, RSquare,
-    Plus, Minus, Multiply, Divide, Semicolon, Colon, Comma, Equals, True, False, Var, If, While }
+    Plus, Minus, Multiply, Divide, Semicolon, Colon, Comma, Equals, True, False, Var, If, While,
+    LessThan, GreaterThan, Bang, LessThanEqual, GreaterThanEqual, EqualTo, NotEqualTo, Pipe, Or, Ampersand, And }
 
 pub struct TokenIterator<'a> {
     char_stream: Peekable<Chars<'a>>
@@ -128,7 +127,42 @@ impl<'a> Iterator for TokenIterator<'a> {
                 ';' => { return Some(Token::Semicolon); },
                 ':' => { return Some(Token::Colon); },
                 ',' => { return Some(Token::Comma); },
-                '=' => { return Some(Token::Equals); },
+                '=' => { 
+                    match self.char_stream.peek() {
+                        Some(&'=') => {self.char_stream.next(); return Some(Token::EqualTo); },
+                        _ => { return Some(Token::Equals); }
+                    }
+                },
+                '<' => { 
+                    match self.char_stream.peek() {
+                        Some(&'=') => {self.char_stream.next(); return Some(Token::LessThanEqual); },
+                        _ => { return Some(Token::LessThan); }
+                    }
+                }
+                '>' => { 
+                    match self.char_stream.peek() {
+                        Some(&'=') => {self.char_stream.next(); return Some(Token::GreaterThanEqual); },
+                        _ => { return Some(Token::GreaterThan); }
+                    }
+                },
+                '!' => { 
+                    match self.char_stream.peek() {
+                        Some(&'=') => {self.char_stream.next(); return Some(Token::NotEqualTo); },
+                        _ => { return Some(Token::Bang); }
+                    }
+                },
+                '|' => { 
+                    match self.char_stream.peek() {
+                        Some(&'|') => {self.char_stream.next(); return Some(Token::Or); },
+                        _ => { return Some(Token::Pipe); }
+                    }
+                },
+                '&' => { 
+                    match self.char_stream.peek() {
+                        Some(&'&') => {self.char_stream.next(); return Some(Token::And); },
+                        _ => { return Some(Token::Ampersand); }
+                    }
+                },
                 ' ' | '\n' | '\r' => (),
                 _ => return None
             }
@@ -145,6 +179,14 @@ pub fn lex<'a>(input: &'a String) -> TokenIterator<'a> {
 fn get_precedence(token: &Token) -> i32 {
     match *token {
         Token::Equals => 10,
+        Token::Or => 11,
+        Token::And => 12,
+        Token::LessThan => 15,
+        Token::LessThanEqual => 15,
+        Token::GreaterThan => 15,
+        Token::GreaterThanEqual => 15,
+        Token::EqualTo => 15,
+        Token::NotEqualTo => 15,
         Token::Plus => 20,
         Token::Minus => 20,
         Token::Multiply => 40,
@@ -238,11 +280,19 @@ fn parse_binop<'a>(input: &mut Peekable<TokenIterator<'a>>, prec: i32, lhs: Expr
             }
 
             lhs_curr = match op_token {
-                Token::Plus => Expr::Plus(Box::new(lhs_curr), Box::new(rhs)),
-                Token::Minus => Expr::Minus(Box::new(lhs_curr), Box::new(rhs)),
-                Token::Multiply => Expr::Multiply(Box::new(lhs_curr), Box::new(rhs)),
-                Token::Divide => Expr::Divide(Box::new(lhs_curr), Box::new(rhs)),
+                Token::Plus => Expr::Call("+".to_string(), Box::new(vec![lhs_curr, rhs])),
+                Token::Minus => Expr::Call("-".to_string(), Box::new(vec![lhs_curr, rhs])),
+                Token::Multiply => Expr::Call("*".to_string(), Box::new(vec![lhs_curr, rhs])),
+                Token::Divide => Expr::Call("/".to_string(), Box::new(vec![lhs_curr, rhs])),
                 Token::Equals => Expr::Assignment(Box::new(lhs_curr), Box::new(rhs)),
+                Token::EqualTo => Expr::Call("==".to_string(), Box::new(vec![lhs_curr, rhs])),
+                Token::NotEqualTo => Expr::Call("!=".to_string(), Box::new(vec![lhs_curr, rhs])),
+                Token::LessThan => Expr::Call("<".to_string(), Box::new(vec![lhs_curr, rhs])),
+                Token::LessThanEqual => Expr::Call("<=".to_string(), Box::new(vec![lhs_curr, rhs])),
+                Token::GreaterThan => Expr::Call(">".to_string(), Box::new(vec![lhs_curr, rhs])),
+                Token::GreaterThanEqual => Expr::Call(">=".to_string(), Box::new(vec![lhs_curr, rhs])),
+                Token::Or => Expr::Call("||".to_string(), Box::new(vec![lhs_curr, rhs])),
+                Token::And => Expr::Call("&&".to_string(), Box::new(vec![lhs_curr, rhs])),
                 _ => return Err(ParseError::UnknownOperator)
             };
         }

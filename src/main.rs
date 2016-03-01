@@ -9,8 +9,6 @@ use engine::Engine;
 mod fn_register;
 use fn_register::FnRegister;
 
-mod ops;
-
 mod parser;
 
 // Todo (in no particular order):
@@ -18,8 +16,7 @@ mod parser;
 // * Doc some examples
 // * Refactor identifer to not require inlining of clone lookup in engine
 // * Remove empty box values?
-// * Method/dot access
-// * Comparison ops
+// * Methods
 
 /*
 fn simple_fn(x: i32) -> bool { x == 1 }
@@ -89,86 +86,6 @@ fn engine_test() {
     println!("TS2: {:?}", result2);
 }
 */
-
-#[test]
-fn test_number_literal() {
-    let mut engine = Engine::new();
-
-    if let Ok(result) = engine.eval("65".to_string()).unwrap().downcast::<i32>() {
-        assert_eq!(*result, 65);
-    }
-    else {
-        assert!(false);
-    }
-}
-
-#[test]
-fn test_addition() {
-    let mut engine = Engine::new();
-
-    if let Ok(result) = engine.eval("60 + 5".to_string()).unwrap().downcast::<i32>() {
-        assert_eq!(*result, 65);
-    }
-    else {
-        assert!(false);
-    }
-}
-
-#[test]
-fn test_boolean() {
-    let mut engine = Engine::new();
-
-    if let Ok(result) = engine.eval("true".to_string()).unwrap().downcast::<bool>() {
-        assert_eq!(*result, true);
-    }
-    else {
-        assert!(false);
-    }
-}
-
-#[test]
-fn test_if() {
-    let mut engine = Engine::new();
-
-    if let Ok(result) = engine.eval("if true { 55 }".to_string()).unwrap().downcast::<i32>() {
-        assert_eq!(*result, 55);
-    }
-    else {
-        assert!(false);
-    }
-}
-
-#[test]
-fn test_var_scope() {
-    let mut engine = Engine::new();
-
-    if let Ok(_) = engine.eval("var x = 4 + 5".to_string()) { } else { assert!(false); }    
-
-    if let Ok(result) = engine.eval("x".to_string()).unwrap().downcast::<i32>() {
-        assert_eq!(*result, 9);
-    }
-    else {
-        assert!(false);
-    }    
-
-    if let Ok(_) = engine.eval("x = x + 1; x = x + 2;".to_string()) { } else { assert!(false); }
-
-    if let Ok(result) = engine.eval("x".to_string()).unwrap().downcast::<i32>() {
-        assert_eq!(*result, 12);
-    }
-    else {
-        assert!(false);
-    }
-
-    if let Ok(_) = engine.eval("{var x = 3}".to_string()) { } else { assert!(false); }
-
-    if let Ok(result) = engine.eval("x".to_string()).unwrap().downcast::<i32>() {
-        assert_eq!(*result, 12);
-    }
-    else {
-        assert!(false);
-    }
-}
 
 fn showit<T: Display>(x: &mut T) -> () {
     println!("{}", x)
