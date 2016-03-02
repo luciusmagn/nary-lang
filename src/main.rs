@@ -13,7 +13,14 @@ mod parser;
 
 // Todo (in no particular order):
 // * Doc some examples
-// * String constants
+// *   Hello world
+// *   Functions and methods
+// *   Registering types
+// *   Maintaining state
+// *   Overloading
+// *   How it works
+// * Arity to 10?
+// * Better error handling in lexer
 // * Remove empty box values?
 
 fn showit<T: Display>(x: &mut T) -> () {

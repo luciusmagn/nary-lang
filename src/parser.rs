@@ -3,6 +3,7 @@ use std::error::Error;
 use std::fmt;
 use std::iter::Peekable;
 use std::str::Chars;
+use std::char;
 
 #[derive(Debug)]
 pub enum ParseError {
@@ -59,11 +60,11 @@ pub enum Stmt { If(Box<Expr>, Box<Stmt>), While(Box<Expr>, Box<Stmt>), Var(Strin
     Block(Box<Vec<Stmt>>), Expr(Box<Expr>) }
 
 #[derive(Debug, Clone)]
-pub enum Expr { IntConst(i32), Identifier(String), FnCall(String, Box<Vec<Expr>>), MethodCall(String, String, Box<Vec<Expr>>), 
-    Assignment(Box<Expr>, Box<Expr>), True, False }
+pub enum Expr { IntConst(i32), Identifier(String), StringConst(String), FnCall(String, Box<Vec<Expr>>), 
+    MethodCall(String, String, Box<Vec<Expr>>), Assignment(Box<Expr>, Box<Expr>), True, False }
 
 #[derive(Debug)]
-pub enum Token { Int(i32), Id(String), LCurly, RCurly, LParen, RParen, LSquare, RSquare,
+pub enum Token { IntConst(i32), Identifier(String), StringConst(String), LCurly, RCurly, LParen, RParen, LSquare, RSquare,
     Plus, Minus, Multiply, Divide, Semicolon, Colon, Comma, Period, Equals, True, False, Var, If, While,
     LessThan, GreaterThan, Bang, LessThanEqual, GreaterThanEqual, EqualTo, NotEqualTo, Pipe, Or, Ampersand, And, Fn }
 
@@ -91,7 +92,7 @@ impl<'a> Iterator for TokenIterator<'a> {
                     let out : String = result.iter().cloned().collect();
 
                     if let Ok(val) = out.parse::<i32>() {
-                        return Some(Token::Int(val));
+                        return Some(Token::IntConst(val));
                     }
                     return None;
                 },
@@ -128,9 +129,102 @@ impl<'a> Iterator for TokenIterator<'a> {
                         return Some(Token::Fn);
                     }
                     else {
-                        return Some(Token::Id(out));
+                        return Some(Token::Identifier(out));
                     }
                 },
+                '"' => {
+                    let mut result = Vec::new();
+                    let mut escape = false;
+
+                    while let Some(nxt) = self.char_stream.next() {
+                        match nxt {
+                            '"' if !escape => break,
+                            '\\' if !escape => escape = true,
+                            't' if escape => {escape = false; result.push('\t'); },
+                            'n' if escape => {escape = false; result.push('\n'); },
+                            'r' if escape => {escape = false; result.push('\r'); },
+                            'x' if escape => {
+                                escape = false;
+                                let mut out_val: u32 = 0;
+                                for _ in 0..2 {
+                                    if let Some(c) = self.char_stream.next() {
+                                        if let Some(d1) = c.to_digit(16) {
+                                            out_val *= 16;
+                                            out_val += d1;
+                                        }
+                                        else {
+                                            println!("Warning: unexpected character in escaped value")
+                                        }
+                                    }
+                                    else {
+                                        println!("Warning: unexpected character in escaped value")
+                                    }
+                                }
+
+                                if let Some(r) = char::from_u32(out_val) {
+                                    result.push(r);
+                                }
+                                else {
+                                    println!("Warning: unexpected character in escaped value")                                    
+                                }
+                            }
+                            'u' if escape => {
+                                escape = false;
+                                let mut out_val: u32 = 0;
+                                for _ in 0..4 {
+                                    if let Some(c) = self.char_stream.next() {
+                                        if let Some(d1) = c.to_digit(16) {
+                                            out_val *= 16;
+                                            out_val += d1;
+                                        }
+                                        else {
+                                            println!("Warning: unexpected character in escaped value")
+                                        }
+                                    }
+                                    else {
+                                        println!("Warning: unexpected character in escaped value")
+                                    }
+                                }
+
+                                if let Some(r) = char::from_u32(out_val) {
+                                    result.push(r);
+                                }
+                                else {
+                                    println!("Warning: unexpected character in escaped value")                                    
+                                }
+                            }
+                            'U' if escape => {
+                                escape = false;
+                                let mut out_val: u32 = 0;
+                                for _ in 0..8 {
+                                    if let Some(c) = self.char_stream.next() {
+                                        if let Some(d1) = c.to_digit(16) {
+                                            out_val *= 16;
+                                            out_val += d1;
+                                        }
+                                        else {
+                                            println!("Warning: unexpected character in escaped value")
+                                        }
+                                    }
+                                    else {
+                                        println!("Warning: unexpected character in escaped value")
+                                    }
+                                }
+
+                                if let Some(r) = char::from_u32(out_val) {
+                                    result.push(r);
+                                }
+                                else {
+                                    println!("Warning: unexpected character in escaped value")                                    
+                                }
+                            }
+                            _ => { escape = false; result.push(nxt); },
+                        }
+                    }
+
+                    let out : String = result.iter().cloned().collect();
+                    return Some(Token::StringConst(out))
+                }
                 '{' => { return Some(Token::LCurly); },
                 '}' => { return Some(Token::RCurly); },
                 '(' => { return Some(Token::LParen); },
@@ -226,7 +320,7 @@ fn parse_ident_expr<'a>(id: String, input: &mut Peekable<TokenIterator<'a>>) -> 
         Some(&Token::Period) => {
             input.next();
             match input.next() {
-                Some(Token::Id(ref s)) => {
+                Some(Token::Identifier(ref s)) => {
                     s.clone()
                 }
                 _ => return Err(ParseError::ExpectedMethodInvocation)
@@ -283,8 +377,9 @@ fn parse_ident_expr<'a>(id: String, input: &mut Peekable<TokenIterator<'a>>) -> 
 fn parse_primary<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<Expr, ParseError> {
     if let Some(token) = input.next() {
         match token {
-            Token::Int(ref x) => {Ok(Expr::IntConst(x.clone()))},
-            Token::Id(ref s) => {parse_ident_expr(s.clone(), input)},
+            Token::IntConst(ref x) => {Ok(Expr::IntConst(x.clone()))},
+            Token::StringConst(ref s) => {Ok(Expr::StringConst(s.clone()))},
+            Token::Identifier(ref s) => {parse_ident_expr(s.clone(), input)},
             Token::LParen => {parse_paren_expr(input)},
             Token::True => {Ok(Expr::True)},
             Token::False => {Ok(Expr::False)},
@@ -371,7 +466,7 @@ fn parse_var<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<Stmt, ParseE
     input.next();
 
     let name = match input.next() {
-        Some(Token::Id(ref s)) => s.clone(),
+        Some(Token::Identifier(ref s)) => s.clone(),
         _ => return Err(ParseError::VarExpectsIdentifier)
     };
 
@@ -440,7 +535,7 @@ fn parse_fn<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<FnDef, ParseE
     input.next();
 
     let name = match input.next() {
-        Some(Token::Id(ref s)) => s.clone(),
+        Some(Token::Identifier(ref s)) => s.clone(),
         _ => return Err(ParseError::FnMissingName)
     };
 
@@ -461,7 +556,7 @@ fn parse_fn<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<FnDef, ParseE
             match input.next() {
                 Some(Token::RParen) => { break },
                 Some(Token::Comma) => (),
-                Some(Token::Id(ref s)) => { params.push(s.clone()); },
+                Some(Token::Identifier(ref s)) => { params.push(s.clone()); },
                 _ => return Err(ParseError::MalformedCallExpr)
             }
         }        

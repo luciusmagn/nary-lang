@@ -251,27 +251,11 @@ impl Engine {
     fn eval_expr(&self, scope: &mut Scope, expr: &Expr) -> Result<Box<Any>, EvalError> {
         match *expr {
             Expr::IntConst(i) => Ok(Box::new(i)),
+            Expr::StringConst(ref s) => Ok(Box::new(s.clone())),
             Expr::Identifier(ref id) => {
                 for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev() {
-                    if *id == *name {
-                        //Ideally, we wouldn't have to inline this call above
-                        let result = self.call_fn_1_arg("clone", val);
-                        /*
-                        let result = match self.fns_arity_1.get("clone") {
-                            Some(vf) => {
-                                for f in vf {
-                                    let invoke = f(val);
-                                    match invoke {
-                                        Ok(v) => return Ok(v),
-                                        _ => ()
-                                    }
-                                };
-                                Err(EvalError::FunctionArgMismatch)
-                            }
-                            None => Err(EvalError::FunctionNotFound)
-                        };
-                        */
-                        return result;
+                    if *id == *name {                        
+                        return self.call_fn_1_arg("clone", val);
                     }
                 }
                 Err(EvalError::VariableNotFound)
@@ -437,6 +421,8 @@ impl Engine {
 
         let mut peekables = tokens.peekable();
         let tree = parse(&mut peekables);
+
+        println!("parse: {:?}", tree);
 
         match tree {
             Ok((ref os, ref fns)) => {
@@ -682,8 +668,20 @@ fn test_method_call() {
 fn test_internal_fn() {
     let mut engine = Engine::new();
 
-    if let Ok(result) = engine.eval( "fn addme(a, b) { a+b } addme(3, 4)".to_string()).unwrap().downcast::<i32>() {
+    if let Ok(result) = engine.eval("fn addme(a, b) { a+b } addme(3, 4)".to_string()).unwrap().downcast::<i32>() {
         assert_eq!(*result, 7);
+    }
+    else {
+        assert!(false);
+    }
+}
+
+#[test]
+fn test_string() {
+    let mut engine = Engine::new();
+
+    if let Ok(result) = engine.eval("\"Test string: \\u2764\"".to_string()).unwrap().downcast::<String>() {
+        assert_eq!(*result, "Test string: ❤");
     }
     else {
         assert!(false);
