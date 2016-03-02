@@ -21,7 +21,7 @@ if true {
 ```
 
 ```Rust
-var x = 10
+var x = 10;
 while x > 0 { 
     print(x);
 }
@@ -86,7 +86,7 @@ fn main() {
 
 # Example 4: Working with custom types and methods
 
-Here's an example of working with Rust.  First, the full example, and then we'll break it down:
+Here's an more complete example of working with Rust.  First the example, then we'll break it into parts:
 
 ```Rust
 #[derive(Debug, Clone)]
