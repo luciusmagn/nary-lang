@@ -55,7 +55,7 @@ struct TestStruct {
 ```
 
 Next, we create a few methods that we'll later use in our scripts.  Notice that we register our custom type with the engine.
-```
+```Rust
 impl TestStruct {
     fn update(&mut self) {
         self.x += 1000;
@@ -75,13 +75,13 @@ To use methods and functions with the engine, we need to register them.  There a
 
 Note: the engine follows the convention that functions take ownership of all their parameters and methods take ownership of all but their first parameter (which is a &mut). 
 
-```
+```Rust
 &(TestStruct::update as fn(&mut TestStruct)->()).register(&mut engine, "update");
 &(TestStruct::new as fn()->TestStruct).register(&mut engine, "new_ts");
 ```
 
 Finally, we call our script.  The script can see the function and method we registered earlier.  We need to get the result back out from script land just as before, this time casting to our custom struct type.
-```
+```Rust
 if let Ok(result) = engine.eval("var x = new_ts(); x.update(); x".to_string()).unwrap().downcast::<TestStruct>() {
     println!("result: {}", result.x); // prints 1001
 }
