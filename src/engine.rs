@@ -232,7 +232,7 @@ impl Engine {
                             let result1 = self.call_fn_1_arg("clone", arg1);
                             let result2 = self.call_fn_1_arg("clone", arg2);
                             let result3 = self.call_fn_1_arg("clone", arg3);
-                            let result4 = self.call_fn_1_arg("clone", arg3);
+                            let result4 = self.call_fn_1_arg("clone", arg4);
                             match (result1, result2, result3, result4) {
                                 (Ok(r1), Ok(r2), Ok(r3), Ok(r4)) => {
                                     new_scope.push((f.params[0].clone(), r1));
