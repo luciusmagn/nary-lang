@@ -1,7 +1,7 @@
 use std::any::Any;
 use std::boxed::Box;
 
-use engine::{EvalError, Engine, Arity0, Arity1, Arity2, Arity3, Arity4, Arity5, Arity6};
+use engine::{EvalError, Engine, FnType};
 
 pub trait FnRegister {
     fn register(self, engine: &mut Engine, name: &str);
@@ -31,8 +31,8 @@ impl<T: Any+Clone, U: Any+Clone, V: Any+Clone, W: Any+Clone, X: Any+Clone, Y: An
                 }
             );
 
-        let ent = engine.fns_arity_6.entry(name.to_string()).or_insert(Vec::new());
-        (*ent).push(Arity6::ExternalFn(wrapped));
+        let ent = engine.fns.entry(name.to_string()).or_insert(Vec::new());
+        (*ent).push(FnType::ExternalFn6(wrapped));
     }
 }
 
@@ -60,8 +60,8 @@ impl<T: Any+Clone, U: Any+Clone, V: Any+Clone, W: Any+Clone, X: Any+Clone, Y: An
                 }
             );
 
-        let ent = engine.fns_arity_6.entry(name.to_string()).or_insert(Vec::new());
-        (*ent).push(Arity6::ExternalFn(wrapped));
+        let ent = engine.fns.entry(name.to_string()).or_insert(Vec::new());
+        (*ent).push(FnType::ExternalFn6(wrapped));
     }
 }
 
@@ -86,8 +86,8 @@ impl<T: Any+Clone, U: Any+Clone, V: Any+Clone, W: Any+Clone, X: Any+Clone, Y: An
                 }
             );
 
-        let ent = engine.fns_arity_5.entry(name.to_string()).or_insert(Vec::new());
-        (*ent).push(Arity5::ExternalFn(wrapped));
+        let ent = engine.fns.entry(name.to_string()).or_insert(Vec::new());
+        (*ent).push(FnType::ExternalFn5(wrapped));
     }
 }
 
@@ -112,8 +112,8 @@ impl<T: Any+Clone, U: Any+Clone, V: Any+Clone, W: Any+Clone, X: Any+Clone, Y: An
                 }
             );
 
-        let ent = engine.fns_arity_5.entry(name.to_string()).or_insert(Vec::new());
-        (*ent).push(Arity5::ExternalFn(wrapped));
+        let ent = engine.fns.entry(name.to_string()).or_insert(Vec::new());
+        (*ent).push(FnType::ExternalFn5(wrapped));
     }
 }
 
@@ -134,8 +134,8 @@ impl<T: Any+Clone, U: Any+Clone, V: Any+Clone, W: Any+Clone, X: Any+Clone> FnReg
                 }
             );
 
-        let ent = engine.fns_arity_4.entry(name.to_string()).or_insert(Vec::new());
-        (*ent).push(Arity4::ExternalFn(wrapped));
+        let ent = engine.fns.entry(name.to_string()).or_insert(Vec::new());
+        (*ent).push(FnType::ExternalFn4(wrapped));
     }
 }
 
@@ -156,8 +156,8 @@ impl<T: Any+Clone, U: Any+Clone, V: Any+Clone, W: Any+Clone, X: Any+Clone> FnReg
                 }
             );
 
-        let ent = engine.fns_arity_4.entry(name.to_string()).or_insert(Vec::new());
-        (*ent).push(Arity4::ExternalFn(wrapped));
+        let ent = engine.fns.entry(name.to_string()).or_insert(Vec::new());
+        (*ent).push(FnType::ExternalFn4(wrapped));
     }
 }
 
@@ -177,8 +177,8 @@ impl<T: Any+Clone, U: Any+Clone, V: Any+Clone, W: Any+Clone> FnRegister for fn(&
                 }
             );
 
-        let ent = engine.fns_arity_3.entry(name.to_string()).or_insert(Vec::new());
-        (*ent).push(Arity3::ExternalFn(wrapped));
+        let ent = engine.fns.entry(name.to_string()).or_insert(Vec::new());
+        (*ent).push(FnType::ExternalFn3(wrapped));
     }
 }
 
@@ -198,8 +198,8 @@ impl<T: Any+Clone, U: Any+Clone, V: Any+Clone, W: Any+Clone> FnRegister for fn(T
                 }
             );
 
-        let ent = engine.fns_arity_3.entry(name.to_string()).or_insert(Vec::new());
-        (*ent).push(Arity3::ExternalFn(wrapped));
+        let ent = engine.fns.entry(name.to_string()).or_insert(Vec::new());
+        (*ent).push(FnType::ExternalFn3(wrapped));
     }
 }
 
@@ -218,8 +218,8 @@ impl<T: Any+Clone, U: Any+Clone, V: Any+Clone> FnRegister for fn(&mut T, U)->V {
                 }
             );
 
-        let ent = engine.fns_arity_2.entry(name.to_string()).or_insert(Vec::new());
-        (*ent).push(Arity2::ExternalFn(wrapped));
+        let ent = engine.fns.entry(name.to_string()).or_insert(Vec::new());
+        (*ent).push(FnType::ExternalFn2(wrapped));
     }
 }
 
@@ -238,8 +238,8 @@ impl<T: Any+Clone, U: Any+Clone, V: Any+Clone> FnRegister for fn(T, U)->V {
                 }
             );
 
-        let ent = engine.fns_arity_2.entry(name.to_string()).or_insert(Vec::new());
-        (*ent).push(Arity2::ExternalFn(wrapped));
+        let ent = engine.fns.entry(name.to_string()).or_insert(Vec::new());
+        (*ent).push(FnType::ExternalFn2(wrapped));
     }
 }
 
@@ -257,8 +257,8 @@ impl<T: Any+Clone, U: Any+Clone> FnRegister for fn(&mut T)->U {
                 }
             );
 
-        let ent = engine.fns_arity_1.entry(name.to_string()).or_insert(Vec::new());
-        (*ent).push(Arity1::ExternalFn(wrapped));
+        let ent = engine.fns.entry(name.to_string()).or_insert(Vec::new());
+        (*ent).push(FnType::ExternalFn1(wrapped));
     }
 }
 
@@ -275,8 +275,8 @@ impl<T: Any+Clone, U: Any+Clone> FnRegister for fn(T)->U {
                 }
             );
 
-        let ent = engine.fns_arity_1.entry(name.to_string()).or_insert(Vec::new());
-        (*ent).push(Arity1::ExternalFn(wrapped));
+        let ent = engine.fns.entry(name.to_string()).or_insert(Vec::new());
+        (*ent).push(FnType::ExternalFn1(wrapped));
     }
 }
 
@@ -287,7 +287,7 @@ impl<T: Any+Clone> FnRegister for fn()->T {
                 move || { Ok(Box::new(self()) as Box<Any>) }
             );
 
-        let ent = engine.fns_arity_0.entry(name.to_string()).or_insert(Vec::new());
-        (*ent).push(Arity0::ExternalFn(wrapped));
+        let ent = engine.fns.entry(name.to_string()).or_insert(Vec::new());
+        (*ent).push(FnType::ExternalFn0(wrapped));
     }
 }

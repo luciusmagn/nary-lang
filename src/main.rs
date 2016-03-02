@@ -27,9 +27,15 @@ fn showit<T: Display>(x: &mut T) -> () {
     println!("{}", x)
 }
 
+fn greet() {
+    println!("hello!");
+}
+
 fn main() {
     for fname in env::args().skip(1) {
         let mut engine = Engine::new();
+
+        &(greet as fn()->()).register(&mut engine, "greet");
 
         &(showit as fn(x: &mut i32)->()).register(&mut engine, "print");
         &(showit as fn(x: &mut i64)->()).register(&mut engine, "print");
