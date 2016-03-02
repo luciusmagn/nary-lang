@@ -43,52 +43,20 @@ impl fmt::Display for EvalError {
     }
 }
 
-fn add<T: Add>(x: T, y: T) -> <T as Add>::Output {
-    x + y
+
+pub enum Arity6 {
+    ExternalFn(Box<Fn(&mut Box<Any>, &mut Box<Any>, &mut Box<Any>, &mut Box<Any>, &mut Box<Any>, &mut Box<Any>)->Result<Box<Any>, EvalError>>),
+    InternalFn(FnDef)
 }
 
-fn sub<T: Sub>(x: T, y: T) -> <T as Sub>::Output {
-    x - y
+pub enum Arity5 {
+    ExternalFn(Box<Fn(&mut Box<Any>, &mut Box<Any>, &mut Box<Any>, &mut Box<Any>, &mut Box<Any>)->Result<Box<Any>, EvalError>>),
+    InternalFn(FnDef)
 }
 
-fn mul<T: Mul>(x: T, y: T) -> <T as Mul>::Output {
-    x * y
-}
-
-fn div<T: Div>(x: T, y: T) -> <T as Div>::Output {
-    x / y
-}
-
-fn lt<T: Ord>(x: T, y: T) -> bool {
-    x < y
-}
-
-fn lte<T: Ord>(x: T, y: T) -> bool {
-    x <= y
-}
-
-fn gt<T: Ord>(x: T, y: T) -> bool {
-    x > y
-}
-
-fn gte<T: Ord>(x: T, y: T) -> bool {
-    x >= y
-}
-
-fn eq<T: Eq>(x: T, y: T) -> bool {
-    x == y
-}
-
-fn ne<T: Eq>(x: T, y: T) -> bool {
-    x != y
-}
-
-fn and(x: bool, y: bool) -> bool {
-    x && y
-}
-
-fn or(x: bool, y: bool) -> bool {
-    x || y
+pub enum Arity4 {
+    ExternalFn(Box<Fn(&mut Box<Any>, &mut Box<Any>, &mut Box<Any>, &mut Box<Any>)->Result<Box<Any>, EvalError>>),
+    InternalFn(FnDef)
 }
 
 pub enum Arity3 {
@@ -112,6 +80,9 @@ pub enum Arity0 {
 }
 
 pub struct Engine {
+    pub fns_arity_6: HashMap<String, Vec<Arity6>>,
+    pub fns_arity_5: HashMap<String, Vec<Arity5>>,
+    pub fns_arity_4: HashMap<String, Vec<Arity4>>,
     pub fns_arity_3: HashMap<String, Vec<Arity3>>,
     pub fns_arity_2: HashMap<String, Vec<Arity2>>,
     pub fns_arity_1: HashMap<String, Vec<Arity1>>,
@@ -242,6 +213,130 @@ impl Engine {
         }
     }
 
+    pub fn call_fn_4_arg(&self, name: &str, arg1: &mut Box<Any>, arg2: &mut Box<Any>, arg3: &mut Box<Any>, arg4: &mut Box<Any>) -> 
+        Result<Box<Any>, EvalError> {   
+
+        match self.fns_arity_4.get(name) {
+            Some(vf) => {
+                for arr_f in vf {
+                    match arr_f {
+                        & Arity4::ExternalFn(ref f) => {
+                            let invoke = f(arg1, arg2, arg3, arg4);
+                            match invoke {
+                                Ok(v) => return Ok(v),
+                                _ => ()
+                            }
+                        }
+                        & Arity4::InternalFn(ref f) => {
+                            let mut new_scope: Scope = Vec::new();
+                            let result1 = self.call_fn_1_arg("clone", arg1);
+                            let result2 = self.call_fn_1_arg("clone", arg2);
+                            let result3 = self.call_fn_1_arg("clone", arg3);
+                            let result4 = self.call_fn_1_arg("clone", arg3);
+                            match (result1, result2, result3, result4) {
+                                (Ok(r1), Ok(r2), Ok(r3), Ok(r4)) => {
+                                    new_scope.push((f.params[0].clone(), r1));
+                                    new_scope.push((f.params[1].clone(), r2));
+                                    new_scope.push((f.params[2].clone(), r3));
+                                    new_scope.push((f.params[3].clone(), r4));
+                                },
+                                _ => return Err(EvalError::FunctionArgMismatch)
+                            }                                
+                            return self.eval_stmt(&mut new_scope, &*f.body);
+                        }
+                    }
+                };
+                Err(EvalError::FunctionArgMismatch)
+            }
+            None => Err(EvalError::FunctionNotFound)
+        }
+    }
+
+    pub fn call_fn_5_arg(&self, name: &str, arg1: &mut Box<Any>, arg2: &mut Box<Any>, arg3: &mut Box<Any>, 
+        arg4: &mut Box<Any>, arg5: &mut Box<Any>) -> Result<Box<Any>, EvalError> {
+
+        match self.fns_arity_5.get(name) {
+            Some(vf) => {
+                for arr_f in vf {
+                    match arr_f {
+                        & Arity5::ExternalFn(ref f) => {
+                            let invoke = f(arg1, arg2, arg3, arg4, arg5);
+                            match invoke {
+                                Ok(v) => return Ok(v),
+                                _ => ()
+                            }
+                        }
+                        & Arity5::InternalFn(ref f) => {
+                            let mut new_scope: Scope = Vec::new();
+                            let result1 = self.call_fn_1_arg("clone", arg1);
+                            let result2 = self.call_fn_1_arg("clone", arg2);
+                            let result3 = self.call_fn_1_arg("clone", arg3);
+                            let result4 = self.call_fn_1_arg("clone", arg4);
+                            let result5 = self.call_fn_1_arg("clone", arg5);
+                            match (result1, result2, result3, result4, result5) {
+                                (Ok(r1), Ok(r2), Ok(r3), Ok(r4), Ok(r5)) => {
+                                    new_scope.push((f.params[0].clone(), r1));
+                                    new_scope.push((f.params[1].clone(), r2));
+                                    new_scope.push((f.params[2].clone(), r3));
+                                    new_scope.push((f.params[3].clone(), r4));
+                                    new_scope.push((f.params[4].clone(), r5));
+                                },
+                                _ => return Err(EvalError::FunctionArgMismatch)
+                            }                                
+                            return self.eval_stmt(&mut new_scope, &*f.body);
+                        }
+                    }
+                };
+                Err(EvalError::FunctionArgMismatch)
+            }
+            None => Err(EvalError::FunctionNotFound)
+        }
+    }
+
+    pub fn call_fn_6_arg(&self, name: &str, arg1: &mut Box<Any>, arg2: &mut Box<Any>, arg3: &mut Box<Any>,
+        arg4: &mut Box<Any>, arg5: &mut Box<Any>, arg6: &mut Box<Any>) -> Result<Box<Any>, EvalError> {
+
+        match self.fns_arity_6.get(name) {
+            Some(vf) => {
+                for arr_f in vf {
+                    match arr_f {
+                        & Arity6::ExternalFn(ref f) => {
+                            let invoke = f(arg1, arg2, arg3, arg4, arg5, arg6);
+                            match invoke {
+                                Ok(v) => return Ok(v),
+                                _ => ()
+                            }
+                        }
+                        & Arity6::InternalFn(ref f) => {
+                            let mut new_scope: Scope = Vec::new();
+                            let result1 = self.call_fn_1_arg("clone", arg1);
+                            let result2 = self.call_fn_1_arg("clone", arg2);
+                            let result3 = self.call_fn_1_arg("clone", arg3);
+                            let result4 = self.call_fn_1_arg("clone", arg4);
+                            let result5 = self.call_fn_1_arg("clone", arg5);
+                            let result6 = self.call_fn_1_arg("clone", arg6);
+
+                            match (result1, result2, result3, result4, result5, result6) {
+                                (Ok(r1), Ok(r2), Ok(r3), Ok(r4), Ok(r5), Ok(r6)) => {
+                                    new_scope.push((f.params[0].clone(), r1));
+                                    new_scope.push((f.params[1].clone(), r2));
+                                    new_scope.push((f.params[2].clone(), r3));
+                                    new_scope.push((f.params[3].clone(), r4));
+                                    new_scope.push((f.params[4].clone(), r5));
+                                    new_scope.push((f.params[5].clone(), r6));
+                                },
+                                _ => return Err(EvalError::FunctionArgMismatch)
+                            }                                
+                            return self.eval_stmt(&mut new_scope, &*f.body);
+                        }
+                    }
+                };
+                Err(EvalError::FunctionArgMismatch)
+            }
+            None => Err(EvalError::FunctionNotFound)
+        }
+    }
+
     fn register_type<T: Clone+Any>(&mut self) {
         fn clone_helper<T: Clone>(t:T)->T { t.clone() };
 
@@ -295,9 +390,36 @@ impl Engine {
                 else if args.len() == 3 {
                     let mut arg1 = try!(self.eval_expr(scope, &args[0]));
                     let mut arg2 = try!(self.eval_expr(scope, &args[1]));
-                    let mut arg3 = try!(self.eval_expr(scope, &args[1]));
+                    let mut arg3 = try!(self.eval_expr(scope, &args[2]));
 
                     self.call_fn_3_arg(&fn_name, &mut arg1, &mut arg2, &mut arg3)
+                }
+                else if args.len() == 4 {
+                    let mut arg1 = try!(self.eval_expr(scope, &args[0]));
+                    let mut arg2 = try!(self.eval_expr(scope, &args[1]));
+                    let mut arg3 = try!(self.eval_expr(scope, &args[2]));
+                    let mut arg4 = try!(self.eval_expr(scope, &args[3]));
+
+                    self.call_fn_4_arg(&fn_name, &mut arg1, &mut arg2, &mut arg3, &mut arg4)
+                }
+                else if args.len() == 5 {
+                    let mut arg1 = try!(self.eval_expr(scope, &args[0]));
+                    let mut arg2 = try!(self.eval_expr(scope, &args[1]));
+                    let mut arg3 = try!(self.eval_expr(scope, &args[2]));
+                    let mut arg4 = try!(self.eval_expr(scope, &args[3]));
+                    let mut arg5 = try!(self.eval_expr(scope, &args[4]));
+
+                    self.call_fn_5_arg(&fn_name, &mut arg1, &mut arg2, &mut arg3, &mut arg4, &mut arg5)
+                }
+                else if args.len() == 6 {
+                    let mut arg1 = try!(self.eval_expr(scope, &args[0]));
+                    let mut arg2 = try!(self.eval_expr(scope, &args[1]));
+                    let mut arg3 = try!(self.eval_expr(scope, &args[2]));
+                    let mut arg4 = try!(self.eval_expr(scope, &args[3]));
+                    let mut arg5 = try!(self.eval_expr(scope, &args[4]));
+                    let mut arg6 = try!(self.eval_expr(scope, &args[5]));
+
+                    self.call_fn_6_arg(&fn_name, &mut arg1, &mut arg2, &mut arg3, &mut arg4, &mut arg5, &mut arg6)
                 }
                 else {
                     Err(EvalError::FunctionCallNotSupported)
@@ -329,6 +451,45 @@ impl Engine {
                     for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev() {
                         if *target == *name {
                             return self.call_fn_3_arg(&fn_name, val, &mut arg1, &mut arg2);
+                        }
+                    }
+                    Err(EvalError::VariableNotFound)
+                }
+                else if args.len() == 3 {
+                    let mut arg1 = try!(self.eval_expr(scope, &args[0]));
+                    let mut arg2 = try!(self.eval_expr(scope, &args[1]));
+                    let mut arg3 = try!(self.eval_expr(scope, &args[2]));
+
+                    for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev() {
+                        if *target == *name {
+                            return self.call_fn_4_arg(&fn_name, val, &mut arg1, &mut arg2, &mut arg3);
+                        }
+                    }
+                    Err(EvalError::VariableNotFound)
+                }
+                else if args.len() == 4 {
+                    let mut arg1 = try!(self.eval_expr(scope, &args[0]));
+                    let mut arg2 = try!(self.eval_expr(scope, &args[1]));
+                    let mut arg3 = try!(self.eval_expr(scope, &args[2]));
+                    let mut arg4 = try!(self.eval_expr(scope, &args[3]));
+
+                    for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev() {
+                        if *target == *name {
+                            return self.call_fn_5_arg(&fn_name, val, &mut arg1, &mut arg2, &mut arg3, &mut arg4);
+                        }
+                    }
+                    Err(EvalError::VariableNotFound)
+                }
+                else if args.len() == 5 {
+                    let mut arg1 = try!(self.eval_expr(scope, &args[0]));
+                    let mut arg2 = try!(self.eval_expr(scope, &args[1]));
+                    let mut arg3 = try!(self.eval_expr(scope, &args[2]));
+                    let mut arg4 = try!(self.eval_expr(scope, &args[3]));
+                    let mut arg5 = try!(self.eval_expr(scope, &args[4]));
+
+                    for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev() {
+                        if *target == *name {
+                            return self.call_fn_6_arg(&fn_name, val, &mut arg1, &mut arg2, &mut arg3, &mut arg4, &mut arg5);
                         }
                     }
                     Err(EvalError::VariableNotFound)
@@ -422,8 +583,6 @@ impl Engine {
         let mut peekables = tokens.peekable();
         let tree = parse(&mut peekables);
 
-        println!("parse: {:?}", tree);
-
         match tree {
             Ok((ref os, ref fns)) => {
                 let mut x: Result<Box<Any>, EvalError> = Ok(Box::new(()));
@@ -453,6 +612,24 @@ impl Engine {
                             let local_f = f.clone();
                             let ent = self.fns_arity_3.entry(name).or_insert(Vec::new());
                             (*ent).push(Arity3::InternalFn(local_f));                                
+                        },
+                        4 => {
+                            let name = f.name.clone();
+                            let local_f = f.clone();
+                            let ent = self.fns_arity_4.entry(name).or_insert(Vec::new());
+                            (*ent).push(Arity4::InternalFn(local_f));                                
+                        },
+                        5 => {
+                            let name = f.name.clone();
+                            let local_f = f.clone();
+                            let ent = self.fns_arity_5.entry(name).or_insert(Vec::new());
+                            (*ent).push(Arity5::InternalFn(local_f));                                
+                        },
+                        6 => {
+                            let name = f.name.clone();
+                            let local_f = f.clone();
+                            let ent = self.fns_arity_6.entry(name).or_insert(Vec::new());
+                            (*ent).push(Arity6::InternalFn(local_f));                                
                         },
                         _ => return Err(EvalError::FunctionArityNotSupported)
                     }
@@ -494,6 +671,19 @@ impl Engine {
             )
         }
 
+        fn add<T: Add>(x: T, y: T) -> <T as Add>::Output { x + y }
+        fn sub<T: Sub>(x: T, y: T) -> <T as Sub>::Output { x - y }
+        fn mul<T: Mul>(x: T, y: T) -> <T as Mul>::Output { x * y }
+        fn div<T: Div>(x: T, y: T) -> <T as Div>::Output { x / y }
+        fn lt<T: Ord>(x: T, y: T) -> bool { x < y }
+        fn lte<T: Ord>(x: T, y: T) -> bool { x <= y }
+        fn gt<T: Ord>(x: T, y: T) -> bool { x > y }
+        fn gte<T: Ord>(x: T, y: T) -> bool { x >= y }
+        fn eq<T: Eq>(x: T, y: T) -> bool { x == y }
+        fn ne<T: Eq>(x: T, y: T) -> bool { x != y }
+        fn and(x: bool, y: bool) -> bool { x && y }
+        fn or(x: bool, y: bool) -> bool { x || y }
+
         reg_op!(engine, "+", add, i32, i64, u32, u64, f32, f64);
         reg_op!(engine, "-", sub, i32, i64, u32, u64, f32, f64);
         reg_op!(engine, "*", mul, i32, i64, u32, u64, f32, f64);
@@ -515,7 +705,10 @@ impl Engine {
             fns_arity_0: HashMap::new(), 
             fns_arity_1: HashMap::new(), 
             fns_arity_2: HashMap::new(), 
-            fns_arity_3: HashMap::new()
+            fns_arity_3: HashMap::new(),
+            fns_arity_4: HashMap::new(),
+            fns_arity_5: HashMap::new(),
+            fns_arity_6: HashMap::new()
         };
 
         Engine::register_default_lib(&mut engine);
@@ -670,6 +863,18 @@ fn test_internal_fn() {
 
     if let Ok(result) = engine.eval("fn addme(a, b) { a+b } addme(3, 4)".to_string()).unwrap().downcast::<i32>() {
         assert_eq!(*result, 7);
+    }
+    else {
+        assert!(false);
+    }
+}
+
+#[test]
+fn test_big_internal_fn() {
+    let mut engine = Engine::new();
+
+    if let Ok(result) = engine.eval("fn mathme(a, b, c, d, e, f) { a - b * c + d * e - f } mathme(100, 5, 2, 9, 6, 32)".to_string()).unwrap().downcast::<i32>() {
+        assert_eq!(*result, 112);
     }
     else {
         assert!(false);

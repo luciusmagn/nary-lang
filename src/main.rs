@@ -19,7 +19,6 @@ mod parser;
 // *   Maintaining state
 // *   Overloading
 // *   How it works
-// * Arity to 10?
 // * Vectors
 // * Errors with positions?
 // * Remove empty box values?
