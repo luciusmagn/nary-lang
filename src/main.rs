@@ -12,11 +12,9 @@ use fn_register::FnRegister;
 mod parser;
 
 // Todo (in no particular order):
-// * Function in script
 // * Doc some examples
 // * String constants
 // * Remove empty box values?
-// * Refactor identifer to not require inlining of clone lookup in engine?
 
 fn showit<T: Display>(x: &mut T) -> () {
     println!("{}", x)
@@ -25,7 +23,7 @@ fn showit<T: Display>(x: &mut T) -> () {
 fn main() {
     for fname in env::args().skip(1) {
         let mut engine = Engine::new();
-        
+
         &(showit as fn(x: &mut i32)->()).register(&mut engine, "print");
         &(showit as fn(x: &mut i64)->()).register(&mut engine, "print");
         &(showit as fn(x: &mut u32)->()).register(&mut engine, "print");
