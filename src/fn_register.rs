@@ -1,7 +1,7 @@
 use std::any::Any;
 use std::boxed::Box;
 
-use engine::{EvalError, Engine};
+use engine::{EvalError, Engine, Arity0, Arity1, Arity2, Arity3};
 
 pub trait FnRegister {
     fn register(self, engine: &mut Engine, name: &str);
@@ -24,7 +24,7 @@ impl<T: Any+Clone, U: Any+Clone, V: Any+Clone, W: Any+Clone> FnRegister for fn(&
             );
 
         let ent = engine.fns_arity_3.entry(name.to_string()).or_insert(Vec::new());
-        (*ent).push(wrapped);
+        (*ent).push(Arity3::ExternalFn(wrapped));
     }
 }
 
@@ -45,7 +45,7 @@ impl<T: Any+Clone, U: Any+Clone, V: Any+Clone, W: Any+Clone> FnRegister for fn(T
             );
 
         let ent = engine.fns_arity_3.entry(name.to_string()).or_insert(Vec::new());
-        (*ent).push(wrapped);
+        (*ent).push(Arity3::ExternalFn(wrapped));
     }
 }
 
@@ -65,7 +65,7 @@ impl<T: Any+Clone, U: Any+Clone, V: Any+Clone> FnRegister for fn(&mut T, U)->V {
             );
 
         let ent = engine.fns_arity_2.entry(name.to_string()).or_insert(Vec::new());
-        (*ent).push(wrapped);
+        (*ent).push(Arity2::ExternalFn(wrapped));
     }
 }
 
@@ -85,7 +85,7 @@ impl<T: Any+Clone, U: Any+Clone, V: Any+Clone> FnRegister for fn(T, U)->V {
             );
 
         let ent = engine.fns_arity_2.entry(name.to_string()).or_insert(Vec::new());
-        (*ent).push(wrapped);
+        (*ent).push(Arity2::ExternalFn(wrapped));
     }
 }
 
@@ -104,7 +104,7 @@ impl<T: Any+Clone, U: Any+Clone> FnRegister for fn(&mut T)->U {
             );
 
         let ent = engine.fns_arity_1.entry(name.to_string()).or_insert(Vec::new());
-        (*ent).push(wrapped);
+        (*ent).push(Arity1::ExternalFn(wrapped));
     }
 }
 
@@ -122,7 +122,7 @@ impl<T: Any+Clone, U: Any+Clone> FnRegister for fn(T)->U {
             );
 
         let ent = engine.fns_arity_1.entry(name.to_string()).or_insert(Vec::new());
-        (*ent).push(wrapped);
+        (*ent).push(Arity1::ExternalFn(wrapped));
     }
 }
 
@@ -134,6 +134,6 @@ impl<T: Any+Clone> FnRegister for fn()->T {
             );
 
         let ent = engine.fns_arity_0.entry(name.to_string()).or_insert(Vec::new());
-        (*ent).push(wrapped);
+        (*ent).push(Arity0::ExternalFn(wrapped));
     }
 }

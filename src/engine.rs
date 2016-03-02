@@ -4,7 +4,7 @@ use std::any::Any;
 use std::boxed::Box;
 use std::fmt;
 
-use parser::{lex, parse, Expr, Stmt };
+use parser::{lex, parse, Expr, Stmt, FnDef };
 use fn_register::FnRegister;
 
 use std::ops::{Add, Sub, Mul, Div};
@@ -16,7 +16,8 @@ pub enum EvalError {
     FunctionArgMismatch,
     FunctionCallNotSupported,
     IfGuardMismatch,
-    VariableNotFound
+    VariableNotFound,
+    FunctionArityNotSupported
 }
 
 impl Error for EvalError {
@@ -27,6 +28,7 @@ impl Error for EvalError {
             EvalError::FunctionCallNotSupported => "Function call with > 2 argument not supported",
             EvalError::IfGuardMismatch => "If guards expect boolean expression",
             EvalError::VariableNotFound => "Variable not found",
+            EvalError::FunctionArityNotSupported => "Functions of more than 3 parameters are not yet supported"
         }
     }
 
@@ -89,23 +91,52 @@ fn or(x: bool, y: bool) -> bool {
     x || y
 }
 
-pub struct Engine {
-    pub fns_arity_3: HashMap<String, Vec<Box<Fn(&mut Box<Any>, &mut Box<Any>, &mut Box<Any>)->Result<Box<Any>, EvalError>>>>,
-    pub fns_arity_2: HashMap<String, Vec<Box<Fn(&mut Box<Any>, &mut Box<Any>)->Result<Box<Any>, EvalError>>>>,
-    pub fns_arity_1: HashMap<String, Vec<Box<Fn(&mut Box<Any>)->Result<Box<Any>, EvalError>>>>,
-    pub fns_arity_0: HashMap<String, Vec<Box<Fn()->Result<Box<Any>, EvalError>>>>,
-    pub scope: Vec<(String, Box<Any>)>
+pub enum Arity3 {
+    ExternalFn(Box<Fn(&mut Box<Any>, &mut Box<Any>, &mut Box<Any>)->Result<Box<Any>, EvalError>>),
+    InternalFn(FnDef)
 }
 
+pub enum Arity2 {
+    ExternalFn(Box<Fn(&mut Box<Any>, &mut Box<Any>)->Result<Box<Any>, EvalError>>),
+    InternalFn(FnDef)
+}
+
+pub enum Arity1 {
+    ExternalFn(Box<Fn(&mut Box<Any>)->Result<Box<Any>, EvalError>>),
+    InternalFn(FnDef)
+}
+
+pub enum Arity0 {
+    ExternalFn(Box<Fn()->Result<Box<Any>, EvalError>>),
+    InternalFn(FnDef)
+}
+
+pub struct Engine {
+    pub fns_arity_3: HashMap<String, Vec<Arity3>>,
+    pub fns_arity_2: HashMap<String, Vec<Arity2>>,
+    pub fns_arity_1: HashMap<String, Vec<Arity1>>,
+    pub fns_arity_0: HashMap<String, Vec<Arity0>>,
+}
+
+pub type Scope = Vec<(String, Box<Any>)>;
+
 impl Engine {
-    pub fn call_fn_0_arg(fns_arity_0: &HashMap<String, Vec<Box<Fn()->Result<Box<Any>, EvalError>>>>, name: &str) -> Result<Box<Any>, EvalError> {
-        match fns_arity_0.get(name) {
+    fn call_fn_0_arg(&self, name: &str) -> Result<Box<Any>, EvalError> {
+        match self.fns_arity_0.get(name) {
             Some(vf) => {
-                for f in vf {
-                    let invoke = f();
-                    match invoke {
-                        Ok(v) => return Ok(v),
-                        _ => ()
+                for arr_f in vf {
+                    match arr_f {
+                        & Arity0::ExternalFn(ref f) => {
+                            let invoke = f();
+                            match invoke {
+                                Ok(v) => return Ok(v),
+                                _ => ()
+                            }                            
+                        }
+                        & Arity0::InternalFn(ref f) => {
+                            let mut new_scope: Scope = Vec::new();
+                            return self.eval_stmt(&mut new_scope, &*f.body);
+                        }
                     }
                 };
                 Err(EvalError::FunctionArgMismatch)
@@ -114,16 +145,27 @@ impl Engine {
         }
     }
 
-    pub fn call_fn_1_arg(fns_arity_1: &HashMap<String, Vec<Box<Fn(&mut Box<Any>)->Result<Box<Any>, EvalError>>>>, 
-        name: &str, arg1: &mut Box<Any>) -> Result<Box<Any>, EvalError> {
-        
-        match fns_arity_1.get(name) {
+    fn call_fn_1_arg(&self, name: &str, arg1: &mut Box<Any>) -> Result<Box<Any>, EvalError> {        
+        match self.fns_arity_1.get(name) {
             Some(vf) => {
-                for f in vf {
-                    let invoke = f(arg1);
-                    match invoke {
-                        Ok(v) => return Ok(v),
-                        _ => ()
+                for arr_f in vf {
+                    match arr_f {
+                        & Arity1::ExternalFn(ref f) => {
+                            let invoke = f(arg1);
+                            match invoke {
+                                Ok(v) => return Ok(v),
+                                _ => ()
+                            }
+                        }
+                        & Arity1::InternalFn(ref f) => {
+                            let mut new_scope: Scope = Vec::new();
+                            let result = self.call_fn_1_arg("clone", arg1);
+                            match result {
+                                Ok(r) => new_scope.push((f.params[0].clone(), r)),
+                                _ => return Err(EvalError::FunctionArgMismatch)
+                            }                                
+                            return self.eval_stmt(&mut new_scope, &*f.body);
+                        }
                     }
                 };
                 Err(EvalError::FunctionArgMismatch)
@@ -132,16 +174,31 @@ impl Engine {
         }
     }
 
-    pub fn call_fn_2_arg(fns_arity_2: &HashMap<String, Vec<Box<Fn(&mut Box<Any>, &mut Box<Any>)->Result<Box<Any>, EvalError>>>>, 
-        name: &str, arg1: &mut Box<Any>, arg2: &mut Box<Any>) -> Result<Box<Any>, EvalError> {
-        
-        match fns_arity_2.get(name) {
+    fn call_fn_2_arg(&self, name: &str, arg1: &mut Box<Any>, arg2: &mut Box<Any>) -> Result<Box<Any>, EvalError> {        
+        match self.fns_arity_2.get(name) {
             Some(vf) => {
-                for f in vf {
-                    let invoke = f(arg1, arg2);
-                    match invoke {
-                        Ok(v) => return Ok(v),
-                        _ => ()
+                for arr_f in vf {
+                    match arr_f {
+                        & Arity2::ExternalFn(ref f) => {
+                            let invoke = f(arg1, arg2);
+                            match invoke {
+                                Ok(v) => return Ok(v),
+                                _ => ()
+                            }
+                        }
+                        & Arity2::InternalFn(ref f) => {
+                            let mut new_scope: Scope = Vec::new();
+                            let result1 = self.call_fn_1_arg("clone", arg1);
+                            let result2 = self.call_fn_1_arg("clone", arg2);
+                            match (result1, result2) {
+                                (Ok(r1), Ok(r2)) => {
+                                    new_scope.push((f.params[0].clone(), r1));
+                                    new_scope.push((f.params[1].clone(), r2));
+                                },
+                                _ => return Err(EvalError::FunctionArgMismatch)
+                            }                                
+                            return self.eval_stmt(&mut new_scope, &*f.body);
+                        }
                     }
                 };
                 Err(EvalError::FunctionArgMismatch)
@@ -150,16 +207,33 @@ impl Engine {
         }
     }
 
-    pub fn call_fn_3_arg(fns_arity_3: &HashMap<String, Vec<Box<Fn(&mut Box<Any>, &mut Box<Any>, &mut Box<Any>)->Result<Box<Any>, EvalError>>>>, 
-        name: &str, arg1: &mut Box<Any>, arg2: &mut Box<Any>, arg3: &mut Box<Any>) -> Result<Box<Any>, EvalError> {
-        
-        match fns_arity_3.get(name) {
+    pub fn call_fn_3_arg(&self, name: &str, arg1: &mut Box<Any>, arg2: &mut Box<Any>, arg3: &mut Box<Any>) -> Result<Box<Any>, EvalError> {        
+        match self.fns_arity_3.get(name) {
             Some(vf) => {
-                for f in vf {
-                    let invoke = f(arg1, arg2, arg3);
-                    match invoke {
-                        Ok(v) => return Ok(v),
-                        _ => ()
+                for arr_f in vf {
+                    match arr_f {
+                        & Arity3::ExternalFn(ref f) => {
+                            let invoke = f(arg1, arg2, arg3);
+                            match invoke {
+                                Ok(v) => return Ok(v),
+                                _ => ()
+                            }
+                        }
+                        & Arity3::InternalFn(ref f) => {
+                            let mut new_scope: Scope = Vec::new();
+                            let result1 = self.call_fn_1_arg("clone", arg1);
+                            let result2 = self.call_fn_1_arg("clone", arg2);
+                            let result3 = self.call_fn_1_arg("clone", arg3);
+                            match (result1, result2, result3) {
+                                (Ok(r1), Ok(r2), Ok(r3)) => {
+                                    new_scope.push((f.params[0].clone(), r1));
+                                    new_scope.push((f.params[1].clone(), r2));
+                                    new_scope.push((f.params[2].clone(), r3));
+                                },
+                                _ => return Err(EvalError::FunctionArgMismatch)
+                            }                                
+                            return self.eval_stmt(&mut new_scope, &*f.body);
+                        }
                     }
                 };
                 Err(EvalError::FunctionArgMismatch)
@@ -174,14 +248,15 @@ impl Engine {
         &(clone_helper as fn(T)->T).register(self, "clone");
     }
 
-    fn eval_expr(&mut self, expr: &Expr) -> Result<Box<Any>, EvalError> {
+    fn eval_expr(&self, scope: &mut Scope, expr: &Expr) -> Result<Box<Any>, EvalError> {
         match *expr {
             Expr::IntConst(i) => Ok(Box::new(i)),
             Expr::Identifier(ref id) => {
-                for &mut (ref name, ref mut val) in &mut self.scope.iter_mut().rev() {
+                for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev() {
                     if *id == *name {
                         //Ideally, we wouldn't have to inline this call above
-                        //let result = self.call_fn_1_arg("clone", val);
+                        let result = self.call_fn_1_arg("clone", val);
+                        /*
                         let result = match self.fns_arity_1.get("clone") {
                             Some(vf) => {
                                 for f in vf {
@@ -195,7 +270,7 @@ impl Engine {
                             }
                             None => Err(EvalError::FunctionNotFound)
                         };
-
+                        */
                         return result;
                     }
                 }
@@ -204,8 +279,8 @@ impl Engine {
             Expr::Assignment(ref id, ref rhs) => {
                 match **id {
                     Expr::Identifier(ref n) => {
-                        let rhs_val = try!(self.eval_expr(rhs));
-                        for &mut (ref name, ref mut val) in &mut self.scope.iter_mut().rev() {
+                        let rhs_val = try!(self.eval_expr(scope, rhs));
+                        for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev() {
                             if *n == *name {
 
                                 *val = rhs_val;
@@ -220,25 +295,25 @@ impl Engine {
             }
             Expr::FnCall(ref fn_name, ref args) => {
                 if args.len() == 0 {
-                    Engine::call_fn_0_arg(&self.fns_arity_0, &fn_name)
+                    self.call_fn_0_arg(&fn_name)
                 }
                 else if args.len() == 1 {
-                    let mut arg = try!(self.eval_expr(&args[0]));
+                    let mut arg = try!(self.eval_expr(scope, &args[0]));
 
-                    Engine::call_fn_1_arg(&self.fns_arity_1, &fn_name, &mut arg)
+                    self.call_fn_1_arg(&fn_name, &mut arg)
                 }
                 else if args.len() == 2 {
-                    let mut arg1 = try!(self.eval_expr(&args[0]));
-                    let mut arg2 = try!(self.eval_expr(&args[1]));
+                    let mut arg1 = try!(self.eval_expr(scope, &args[0]));
+                    let mut arg2 = try!(self.eval_expr(scope, &args[1]));
 
-                    Engine::call_fn_2_arg(&self.fns_arity_2, &fn_name, &mut arg1, &mut arg2)
+                    self.call_fn_2_arg(&fn_name, &mut arg1, &mut arg2)
                 }
                 else if args.len() == 3 {
-                    let mut arg1 = try!(self.eval_expr(&args[0]));
-                    let mut arg2 = try!(self.eval_expr(&args[1]));
-                    let mut arg3 = try!(self.eval_expr(&args[1]));
+                    let mut arg1 = try!(self.eval_expr(scope, &args[0]));
+                    let mut arg2 = try!(self.eval_expr(scope, &args[1]));
+                    let mut arg3 = try!(self.eval_expr(scope, &args[1]));
 
-                    Engine::call_fn_3_arg(&self.fns_arity_3, &fn_name, &mut arg1, &mut arg2, &mut arg3)
+                    self.call_fn_3_arg(&fn_name, &mut arg1, &mut arg2, &mut arg3)
                 }
                 else {
                     Err(EvalError::FunctionCallNotSupported)
@@ -246,30 +321,30 @@ impl Engine {
             }
             Expr::MethodCall(ref target, ref fn_name, ref args) => {
                 if args.len() == 0 {
-                    for &mut (ref name, ref mut val) in &mut self.scope.iter_mut().rev() {
+                    for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev() {
                         if *target == *name {
-                            return Engine::call_fn_1_arg(&self.fns_arity_1, &fn_name, val);
+                            return self.call_fn_1_arg(&fn_name, val);
                         }
                     }
                     Err(EvalError::VariableNotFound)
                 }
                 else if args.len() == 1 {
-                    let mut arg = try!(self.eval_expr(&args[0]));
+                    let mut arg = try!(self.eval_expr(scope, &args[0]));
 
-                    for &mut (ref name, ref mut val) in &mut self.scope.iter_mut().rev() {
+                    for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev() {
                         if *target == *name {
-                            return Engine::call_fn_2_arg(&self.fns_arity_2, &fn_name, val, &mut arg);
+                            return self.call_fn_2_arg(&fn_name, val, &mut arg);
                         }
                     }
                     Err(EvalError::VariableNotFound)
                 }
                 else if args.len() == 2 {
-                    let mut arg1 = try!(self.eval_expr(&args[0]));
-                    let mut arg2 = try!(self.eval_expr(&args[1]));
+                    let mut arg1 = try!(self.eval_expr(scope, &args[0]));
+                    let mut arg2 = try!(self.eval_expr(scope, &args[1]));
 
-                    for &mut (ref name, ref mut val) in &mut self.scope.iter_mut().rev() {
+                    for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev() {
                         if *target == *name {
-                            return Engine::call_fn_3_arg(&self.fns_arity_3, &fn_name, val, &mut arg1, &mut arg2);
+                            return self.call_fn_3_arg(&fn_name, val, &mut arg1, &mut arg2);
                         }
                     }
                     Err(EvalError::VariableNotFound)
@@ -287,31 +362,31 @@ impl Engine {
         }
     }
 
-    fn eval_stmt(&mut self, stmt: &Stmt) -> Result<Box<Any>, EvalError> {
+    fn eval_stmt(&self, scope: &mut Scope, stmt: &Stmt) -> Result<Box<Any>, EvalError> {
         match *stmt {
             Stmt::Expr(ref e) => {
-                self.eval_expr(e)
+                self.eval_expr(scope, e)
             }
             Stmt::Block(ref b) => {
-                let prev_len = self.scope.len();
+                let prev_len = scope.len();
                 let mut last_result : Result<Box<Any>, EvalError> = Ok(Box::new(0));
 
                 for s in b.iter() {
-                    last_result = self.eval_stmt(s)
+                    last_result = self.eval_stmt(scope, s)
                 }
 
-                while self.scope.len() > prev_len {
-                    self.scope.pop();
+                while scope.len() > prev_len {
+                    scope.pop();
                 }
 
                 return last_result;
             }
             Stmt::If(ref guard, ref body) => {
-                let guard_result = try!(self.eval_expr(guard));
+                let guard_result = try!(self.eval_expr(scope, guard));
                 match guard_result.downcast::<bool>() {
                     Ok(g) => {
                         if *g {
-                            self.eval_stmt(body)
+                            self.eval_stmt(scope, body)
                         }
                         else {
                             Ok(Box::new(()))
@@ -322,11 +397,11 @@ impl Engine {
             }
             Stmt::While(ref guard, ref body) => {
                 loop {
-                    let guard_result = try!(self.eval_expr(guard));
+                    let guard_result = try!(self.eval_expr(scope, guard));
                     match guard_result.downcast::<bool>() {
                         Ok(g) => {
                             if *g {
-                                try!(self.eval_stmt(body));
+                                try!(self.eval_stmt(scope, body));
                             }
                             else {
                                 return Ok(Box::new(()));
@@ -339,11 +414,11 @@ impl Engine {
             Stmt::Var(ref name, ref init) => {
                 match init {
                     & Some(ref v) => {
-                        let i = try!(self.eval_expr(v)); 
-                        self.scope.push((name.clone(), i));
+                        let i = try!(self.eval_expr(scope, v)); 
+                        scope.push((name.clone(), i));
                     },
                     & None => {
-                        self.scope.push((name.clone(), Box::new(())));
+                        scope.push((name.clone(), Box::new(())));
                     }
                 };
                 Ok(Box::new(()))
@@ -352,6 +427,12 @@ impl Engine {
     }
 
     pub fn eval(&mut self, input: String) -> Result<Box<Any>, EvalError> {
+        let mut scope: Scope = Vec::new();
+
+        self.eval_with_scope(&mut scope, input)
+    }
+
+    pub fn eval_with_scope(&mut self, scope: &mut Scope, input: String) -> Result<Box<Any>, EvalError> {
         let tokens = lex(&input);
 
         let mut peekables = tokens.peekable();
@@ -360,23 +441,43 @@ impl Engine {
         match tree {
             Ok((ref os, ref fns)) => {
                 let mut x: Result<Box<Any>, EvalError> = Ok(Box::new(()));
+                
                 for f in fns {
-                    if f.params.len() == 0 {
-                        let local_f = f.clone();
-                        let ent = self.fns_arity_0.entry(local_f.name).or_insert(Vec::new());
-                        let wrapped : Box<Fn()->Result<Box<Any>, EvalError>> = 
-                            Box::new(move || { Ok(Box::new(0)) } );
-                        //move || { self.eval_stmt(&local_f.body) } 
-                        (*ent).push(wrapped);
+                    match f.params.len() {
+                        0 => {
+                            let name = f.name.clone();
+                            let local_f = f.clone();
+                            let ent = self.fns_arity_0.entry(name).or_insert(Vec::new());
+                            (*ent).push(Arity0::InternalFn(local_f));                                
+                        },
+                        1 => {
+                            let name = f.name.clone();
+                            let local_f = f.clone();
+                            let ent = self.fns_arity_1.entry(name).or_insert(Vec::new());
+                            (*ent).push(Arity1::InternalFn(local_f));                                
+                        },
+                        2 => {
+                            let name = f.name.clone();
+                            let local_f = f.clone();
+                            let ent = self.fns_arity_2.entry(name).or_insert(Vec::new());
+                            (*ent).push(Arity2::InternalFn(local_f));                                
+                        },
+                        3 => {
+                            let name = f.name.clone();
+                            let local_f = f.clone();
+                            let ent = self.fns_arity_3.entry(name).or_insert(Vec::new());
+                            (*ent).push(Arity3::InternalFn(local_f));                                
+                        },
+                        _ => return Err(EvalError::FunctionArityNotSupported)
                     }
                 }
 
                 for o in os {
-                    x = self.eval_stmt(&o)
+                    x = self.eval_stmt(scope, &o);
                 }
                 x
             }
-            Err(_) => Err(EvalError::FunctionArgMismatch),
+            Err(_) => Err(EvalError::FunctionArgMismatch)
         }
     }
 
@@ -428,8 +529,7 @@ impl Engine {
             fns_arity_0: HashMap::new(), 
             fns_arity_1: HashMap::new(), 
             fns_arity_2: HashMap::new(), 
-            fns_arity_3: HashMap::new(), 
-            scope: Vec::new() 
+            fns_arity_3: HashMap::new()
         };
 
         Engine::register_default_lib(&mut engine);
@@ -464,7 +564,7 @@ fn test_addition() {
 }
 
 #[test]
-fn test_bool_op() {
+fn test_bool_op1() {
     let mut engine = Engine::new();
 
     if let Ok(result) = engine.eval("true && (false || true)".to_string()).unwrap().downcast::<bool>() {
@@ -473,6 +573,11 @@ fn test_bool_op() {
     else {
         assert!(false);
     }
+}
+
+#[test]
+fn test_bool_op2() {
+    let mut engine = Engine::new();
 
     if let Ok(result) = engine.eval("false && (false || true)".to_string()).unwrap().downcast::<bool>() {
         assert_eq!(*result, false);
@@ -507,30 +612,32 @@ fn test_if() {
 }
 
 #[test]
+
 fn test_var_scope() {
     let mut engine = Engine::new();
+    let mut scope: Scope = Vec::new();
 
-    if let Ok(_) = engine.eval("var x = 4 + 5".to_string()) { } else { assert!(false); }    
+    if let Ok(_) = engine.eval_with_scope(&mut scope, "var x = 4 + 5".to_string()) { } else { assert!(false); }    
 
-    if let Ok(result) = engine.eval("x".to_string()).unwrap().downcast::<i32>() {
+    if let Ok(result) = engine.eval_with_scope(&mut scope, "x".to_string()).unwrap().downcast::<i32>() {
         assert_eq!(*result, 9);
     }
     else {
         assert!(false);
     }    
 
-    if let Ok(_) = engine.eval("x = x + 1; x = x + 2;".to_string()) { } else { assert!(false); }
+    if let Ok(_) = engine.eval_with_scope(&mut scope, "x = x + 1; x = x + 2;".to_string()) { } else { assert!(false); }
 
-    if let Ok(result) = engine.eval("x".to_string()).unwrap().downcast::<i32>() {
+    if let Ok(result) = engine.eval_with_scope(&mut scope, "x".to_string()).unwrap().downcast::<i32>() {
         assert_eq!(*result, 12);
     }
     else {
         assert!(false);
     }
 
-    if let Ok(_) = engine.eval("{var x = 3}".to_string()) { } else { assert!(false); }
+    if let Ok(_) = engine.eval_with_scope(&mut scope, "{var x = 3}".to_string()) { } else { assert!(false); }
 
-    if let Ok(result) = engine.eval("x".to_string()).unwrap().downcast::<i32>() {
+    if let Ok(result) = engine.eval_with_scope(&mut scope, "x".to_string()).unwrap().downcast::<i32>() {
         assert_eq!(*result, 12);
     }
     else {
@@ -569,4 +676,16 @@ fn test_method_call() {
         assert!(false);
     }
 
+}
+
+#[test]
+fn test_internal_fn() {
+    let mut engine = Engine::new();
+
+    if let Ok(result) = engine.eval( "fn addme(a, b) { a+b } addme(3, 4)".to_string()).unwrap().downcast::<i32>() {
+        assert_eq!(*result, 7);
+    }
+    else {
+        assert!(false);
+    }
 }
