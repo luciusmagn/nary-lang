@@ -6,6 +6,34 @@ use std::str::Chars;
 use std::char;
 
 #[derive(Debug)]
+pub enum LexError {
+    UnexpectedChar,
+    MalformedEscapeSequence,
+    MalformedNumber
+}
+
+impl Error for LexError {
+    fn description(&self) -> &str {
+        match *self {
+            LexError::UnexpectedChar => "Unexpected character in input",
+            LexError::MalformedEscapeSequence => "Unexpected values in escape sequence",
+            LexError::MalformedNumber => "Unexpected characters in number"
+        }
+    }
+
+    fn cause(&self) -> Option<&Error> {
+        None
+    }
+}
+
+impl fmt::Display for LexError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.description())
+    }
+}
+
+
+#[derive(Debug)]
 pub enum ParseError {
     BadInput,
     InputPastEndOfFile,
@@ -66,7 +94,8 @@ pub enum Expr { IntConst(i32), Identifier(String), StringConst(String), FnCall(S
 #[derive(Debug)]
 pub enum Token { IntConst(i32), Identifier(String), StringConst(String), LCurly, RCurly, LParen, RParen, LSquare, RSquare,
     Plus, Minus, Multiply, Divide, Semicolon, Colon, Comma, Period, Equals, True, False, Var, If, While,
-    LessThan, GreaterThan, Bang, LessThanEqual, GreaterThanEqual, EqualTo, NotEqualTo, Pipe, Or, Ampersand, And, Fn }
+    LessThan, GreaterThan, Bang, LessThanEqual, GreaterThanEqual, EqualTo, NotEqualTo, Pipe, Or, Ampersand, And, Fn,
+    LexErr(LexError) }
 
 pub struct TokenIterator<'a> {
     char_stream: Peekable<Chars<'a>>
@@ -94,7 +123,7 @@ impl<'a> Iterator for TokenIterator<'a> {
                     if let Ok(val) = out.parse::<i32>() {
                         return Some(Token::IntConst(val));
                     }
-                    return None;
+                    return Some(Token::LexErr(LexError::MalformedNumber));
                 },
                 'A'...'Z' | 'a'...'z' | '_' => {
                     let mut result = Vec::new();
@@ -140,6 +169,7 @@ impl<'a> Iterator for TokenIterator<'a> {
                         match nxt {
                             '"' if !escape => break,
                             '\\' if !escape => escape = true,
+                            '\\' if escape => {escape = false; result.push('\\'); },
                             't' if escape => {escape = false; result.push('\t'); },
                             'n' if escape => {escape = false; result.push('\n'); },
                             'r' if escape => {escape = false; result.push('\r'); },
@@ -153,11 +183,11 @@ impl<'a> Iterator for TokenIterator<'a> {
                                             out_val += d1;
                                         }
                                         else {
-                                            println!("Warning: unexpected character in escaped value")
+                                            return Some(Token::LexErr(LexError::MalformedEscapeSequence));
                                         }
                                     }
                                     else {
-                                        println!("Warning: unexpected character in escaped value")
+                                        return Some(Token::LexErr(LexError::MalformedEscapeSequence));
                                     }
                                 }
 
@@ -165,7 +195,7 @@ impl<'a> Iterator for TokenIterator<'a> {
                                     result.push(r);
                                 }
                                 else {
-                                    println!("Warning: unexpected character in escaped value")                                    
+                                    return Some(Token::LexErr(LexError::MalformedEscapeSequence));
                                 }
                             }
                             'u' if escape => {
@@ -178,11 +208,11 @@ impl<'a> Iterator for TokenIterator<'a> {
                                             out_val += d1;
                                         }
                                         else {
-                                            println!("Warning: unexpected character in escaped value")
+                                            return Some(Token::LexErr(LexError::MalformedEscapeSequence));
                                         }
                                     }
                                     else {
-                                        println!("Warning: unexpected character in escaped value")
+                                        return Some(Token::LexErr(LexError::MalformedEscapeSequence));
                                     }
                                 }
 
@@ -190,7 +220,7 @@ impl<'a> Iterator for TokenIterator<'a> {
                                     result.push(r);
                                 }
                                 else {
-                                    println!("Warning: unexpected character in escaped value")                                    
+                                    return Some(Token::LexErr(LexError::MalformedEscapeSequence));
                                 }
                             }
                             'U' if escape => {
@@ -203,11 +233,11 @@ impl<'a> Iterator for TokenIterator<'a> {
                                             out_val += d1;
                                         }
                                         else {
-                                            println!("Warning: unexpected character in escaped value")
+                                            return Some(Token::LexErr(LexError::MalformedEscapeSequence));
                                         }
                                     }
                                     else {
-                                        println!("Warning: unexpected character in escaped value")
+                                        return Some(Token::LexErr(LexError::MalformedEscapeSequence));
                                     }
                                 }
 
@@ -215,9 +245,10 @@ impl<'a> Iterator for TokenIterator<'a> {
                                     result.push(r);
                                 }
                                 else {
-                                    println!("Warning: unexpected character in escaped value")                                    
+                                    return Some(Token::LexErr(LexError::MalformedEscapeSequence));
                                 }
                             }
+                            _ if escape => return Some(Token::LexErr(LexError::MalformedEscapeSequence)),
                             _ => { escape = false; result.push(nxt); },
                         }
                     }
@@ -276,7 +307,7 @@ impl<'a> Iterator for TokenIterator<'a> {
                     }
                 },
                 ' ' | '\n' | '\r' => (),
-                _ => return None
+                _ => return Some(Token::LexErr(LexError::UnexpectedChar))
             }
         }
 
@@ -383,6 +414,7 @@ fn parse_primary<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<Expr, Pa
             Token::LParen => {parse_paren_expr(input)},
             Token::True => {Ok(Expr::True)},
             Token::False => {Ok(Expr::False)},
+            Token::LexErr(le) => {println!("Error: {}", le); Err(ParseError::BadInput)}
             _ => {println!("Can't parse: {:?}", token); Err(ParseError::BadInput)}
         }
     }

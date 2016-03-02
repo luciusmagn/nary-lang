@@ -20,7 +20,8 @@ mod parser;
 // *   Overloading
 // *   How it works
 // * Arity to 10?
-// * Better error handling in lexer
+// * Vectors
+// * Errors with positions?
 // * Remove empty box values?
 
 fn showit<T: Display>(x: &mut T) -> () {
