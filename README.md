@@ -1,10 +1,41 @@
 # Rhai - embedded scripting for Rust
 
-Rhai is a simple embedded scripting language for Rust.  Thou that doesn't use any additional dependencies, unsafe code, or a set of APIs outside of what you provide in your program.  This allows you to have rich control over the functionality exposed to the scripting context.
+Rhai is an embedded scripting language for Rust.  It is meant to be a safe drop-in for your own projects and doesn't use any additional dependencies, unsafe code, or APIs outside of the ones you provide in your program.  This allows you to have rich control over the functionality exposed to the scripting context.
 
+# Features
 
+**Note:** Currently, it's pre-0.1, and is likely to change a bit before it stabilizes enough for a crates.io release.
 
-Currently, it's pre-0.1, and is likely to change a bit before it stabilizes enough for a crates.io release.
+## Variables
+
+```Rust
+var x = 3;
+```
+
+## Control blocks
+
+```Rust
+if true { 
+    print("it's true!");
+}
+```
+
+```Rust
+var x = 10
+while x > 0 { 
+    print(x);
+}
+```
+
+## Functions
+
+```Rust
+fn add(x, y) {
+    x + y
+}
+
+print(add(2, 3))
+```
 
 # Example 1: Hello world
 
