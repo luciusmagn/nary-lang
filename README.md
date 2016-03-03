@@ -20,6 +20,12 @@ Rhai's current feature set:
 var x = 3;
 ```
 
+## Operators
+
+```Rust
+var x = (1 + 2) * (6 - 4) / 2;
+```
+
 ## Control blocks
 
 ```Rust
