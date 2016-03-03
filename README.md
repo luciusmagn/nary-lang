@@ -68,10 +68,15 @@ print(add(2, 3))
 # Example 1: Hello world
 
 ```Rust
-let mut engine = Engine::new();
+extern crate rhai;
+use rhai::Engine;
 
-if let Ok(result) = engine.eval("40 + 2".to_string()).unwrap().downcast::<i32>() {
-    println!("Answer: {}", *result);  // prints 42
+fn main() {
+    let mut engine = Engine::new();
+
+    if let Ok(result) = engine.eval("40 + 2".to_string()).unwrap().downcast::<i32>() {
+        println!("Answer: {}", *result);  // prints 42
+    }
 }
 ```
 # Example 2: Working with functions
@@ -79,6 +84,9 @@ if let Ok(result) = engine.eval("40 + 2".to_string()).unwrap().downcast::<i32>()
 Rhai's scripting engine is very lightweight.  It gets its ability from the functions in your program.  To call these functions, you need to register them with the scripting engine.
 
 ```Rust
+extern crate rhai;
+use rhai::{Engine, FnRegister};
+
 fn add(x: i32, y: i32) -> i32 {
     x + y
 }
@@ -99,6 +107,11 @@ fn main() {
 Generic functions can be used in Rhai, but you'll need to register separate instances for each concrete type:
 
 ```Rust
+use std::fmt::Display;
+
+extern crate rhai;
+use rhai::{Engine, FnRegister};
+
 fn showit<T: Display>(x: &mut T) -> () {
     println!("{}", x)
 }
@@ -119,6 +132,9 @@ You can also see in this example how you can register multiple functions (or in 
 Here's an more complete example of working with Rust.  First the example, then we'll break it into parts:
 
 ```Rust
+extern crate rhai;
+use rhai::{Engine, FnRegister};
+
 #[derive(Debug, Clone)]
 struct TestStruct {
     x: i32
@@ -134,15 +150,17 @@ impl TestStruct {
     }
 }
 
-let mut engine = Engine::new();
+fn main() {
+    let mut engine = Engine::new();
 
-engine.register_type::<TestStruct>();
+    engine.register_type::<TestStruct>();
 
-&(TestStruct::update as fn(&mut TestStruct)->()).register(&mut engine, "update");
-&(TestStruct::new as fn()->TestStruct).register(&mut engine, "new_ts");
+    &(TestStruct::update as fn(&mut TestStruct)->()).register(&mut engine, "update");
+    &(TestStruct::new as fn()->TestStruct).register(&mut engine, "new_ts");
 
-if let Ok(result) = engine.eval("var x = new_ts(); x.update(); x".to_string()).unwrap().downcast::<TestStruct>() {
-    println!("result: {}", result.x); // prints 1001
+    if let Ok(result) = engine.eval("var x = new_ts(); x.update(); x".to_string()).unwrap().downcast::<TestStruct>() {
+        println!("result: {}", result.x); // prints 1001
+    }
 }
 ```
 
