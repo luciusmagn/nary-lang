@@ -3,24 +3,8 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::fmt::Display;
 
-mod engine;
-use engine::Engine;
-
-mod fn_register;
-use fn_register::FnRegister;
-
-mod parser;
-
-// Todo (in no particular order):
-// * Doc some examples
-// *   Maintaining state
-// *   Overloading
-// *   How it works
-// * Vectors
-// * Return
-// * Tighten parser?
-// * Errors with positions?
-// * Remove empty box values?
+extern crate rhai;
+use rhai::{Engine, FnRegister};
 
 fn showit<T: Display>(x: &mut T) -> () {
     println!("{}", x)
@@ -51,3 +35,4 @@ fn main() {
         }
     }
 }
+
