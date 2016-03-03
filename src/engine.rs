@@ -313,7 +313,7 @@ impl Engine {
         }
     }
 
-    fn register_type<T: Clone+Any>(&mut self) {
+    pub fn register_type<T: Clone+Any>(&mut self) {
         fn clone_helper<T: Clone>(t:T)->T { t.clone() };
 
         &(clone_helper as fn(T)->T).register(self, "clone");
