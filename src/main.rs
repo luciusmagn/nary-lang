@@ -13,13 +13,13 @@ mod parser;
 
 // Todo (in no particular order):
 // * Doc some examples
-// *   Hello world
-// *   Functions and methods
-// *   Registering types
 // *   Maintaining state
 // *   Overloading
 // *   How it works
 // * Vectors
+// * Return
+// * Break
+// * Tighten parser?
 // * Errors with positions?
 // * Remove empty box values?
 

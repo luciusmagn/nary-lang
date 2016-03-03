@@ -120,6 +120,7 @@ impl Engine {
                                     let result3 = self.call_fn("clone", Some(a3), None, None, None, None, None);
                                     let result4 = self.call_fn("clone", Some(a4), None, None, None, None, None);
                                     let result5 = self.call_fn("clone", Some(a5), None, None, None, None, None);
+
                                     match (result1, result2, result3, result4, result5) {
                                         (Ok(r1), Ok(r2), Ok(r3), Ok(r4), Ok(r5)) => {
                                             new_scope.push((f.params[0].clone(), r1));
@@ -480,6 +481,20 @@ impl Engine {
                     Err(_) => Err(EvalError::IfGuardMismatch)
                 }
             }
+            Stmt::IfElse(ref guard, ref body, ref else_body) => {
+                let guard_result = try!(self.eval_expr(scope, guard));
+                match guard_result.downcast::<bool>() {
+                    Ok(g) => {
+                        if *g {
+                            self.eval_stmt(scope, body)
+                        }
+                        else {
+                            self.eval_stmt(scope, else_body)
+                        }
+                    }
+                    Err(_) => Err(EvalError::IfGuardMismatch)
+                }
+            }
             Stmt::While(ref guard, ref body) => {
                 loop {
                     let guard_result = try!(self.eval_expr(scope, guard));
@@ -679,6 +694,20 @@ fn test_if() {
     let mut engine = Engine::new();
 
     if let Ok(result) = engine.eval("if true { 55 }".to_string()).unwrap().downcast::<i32>() {
+        assert_eq!(*result, 55);
+    }
+    else {
+        assert!(false);
+    }
+
+    if let Ok(result) = engine.eval("if false { 55 } else { 44 }".to_string()).unwrap().downcast::<i32>() {
+        assert_eq!(*result, 44);
+    }
+    else {
+        assert!(false);
+    }
+
+    if let Ok(result) = engine.eval("if true { 55 } else { 44 }".to_string()).unwrap().downcast::<i32>() {
         assert_eq!(*result, 55);
     }
     else {

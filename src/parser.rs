@@ -84,8 +84,8 @@ pub struct FnDef {
 }
 
 #[derive(Debug, Clone)]
-pub enum Stmt { If(Box<Expr>, Box<Stmt>), While(Box<Expr>, Box<Stmt>), Var(String, Option<Box<Expr>>),
-    Block(Box<Vec<Stmt>>), Expr(Box<Expr>) }
+pub enum Stmt { If(Box<Expr>, Box<Stmt>), IfElse(Box<Expr>, Box<Stmt>, Box<Stmt>), While(Box<Expr>, Box<Stmt>), 
+    Var(String, Option<Box<Expr>>), Block(Box<Vec<Stmt>>), Expr(Box<Expr>) }
 
 #[derive(Debug, Clone)]
 pub enum Expr { IntConst(i32), Identifier(String), StringConst(String), FnCall(String, Box<Vec<Expr>>), 
@@ -93,7 +93,7 @@ pub enum Expr { IntConst(i32), Identifier(String), StringConst(String), FnCall(S
 
 #[derive(Debug)]
 pub enum Token { IntConst(i32), Identifier(String), StringConst(String), LCurly, RCurly, LParen, RParen, LSquare, RSquare,
-    Plus, Minus, Multiply, Divide, Semicolon, Colon, Comma, Period, Equals, True, False, Var, If, While,
+    Plus, Minus, Multiply, Divide, Semicolon, Colon, Comma, Period, Equals, True, False, Var, If, Else, While,
     LessThan, GreaterThan, Bang, LessThanEqual, GreaterThanEqual, EqualTo, NotEqualTo, Pipe, Or, Ampersand, And, Fn,
     LexErr(LexError) }
 
@@ -150,6 +150,9 @@ impl<'a> Iterator for TokenIterator<'a> {
                     }
                     else if out == "if" {
                         return Some(Token::If);
+                    }
+                    else if out == "else" {
+                        return Some(Token::Else);
                     }
                     else if out == "while" {
                         return Some(Token::While);
@@ -482,7 +485,16 @@ fn parse_if<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<Stmt, ParseEr
     let guard = try!(parse_expr(input));
     let body = try!(parse_block(input));
 
-    Ok(Stmt::If(Box::new(guard), Box::new(body)))
+    match input.peek() {
+        Some(& Token::Else) => {
+            input.next();
+            let else_body = try!(parse_block(input));
+            Ok(Stmt::IfElse(Box::new(guard), Box::new(body), Box::new(else_body)))
+        }
+        _ => {
+            Ok(Stmt::If(Box::new(guard), Box::new(body)))
+        }
+    }
 }
 
 fn parse_while<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<Stmt, ParseError> {
