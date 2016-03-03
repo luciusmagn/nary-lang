@@ -4,8 +4,6 @@ Rhai is an embedded scripting language for Rust.  It is meant to be a safe drop-
 
 # Features
 
-**Note:** Currently, it's pre-0.1, and is likely to change a bit before it stabilizes enough for a crates.io release.
-
 Rhai's current feature set:
 
 * Straightforward integration with your application
@@ -15,6 +13,8 @@ Rhai's current feature set:
 * Support for overloaded functions
 * No additional dependencies
 * No unsafe code
+
+***Note:** Currently, it's pre-0.1, and is likely to change a bit before it stabilizes enough for a crates.io release.*
 
 ## Variables
 
