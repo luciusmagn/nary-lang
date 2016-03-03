@@ -1,15 +1,13 @@
 # Rhai - embedded scripting for Rust
 
-Rhai is an embedded scripting language for Rust.  It is meant to be a safe drop-in for your own projects and doesn't use any additional dependencies, unsafe code, or APIs outside of the ones you provide in your program.  This allows you to have rich control over the functionality exposed to the scripting context.
-
-# Features
+Rhai is an embedded scripting language for Rust that gives you a safe and easy way to add scripting to your applications.  
 
 Rhai's current feature set:
 
-* Straightforward integration with your application
+* Easy integration with Rust functions and data types
 * Fairly efficient (1 mil iterations in 0.75 sec on my 5 year old laptop)
 * Low compile-time overhead (~4 secs for debug build, ~11 secs for release build)
-* Simple, easy-to-use scripting language
+* Simple, easy-to-use language features
 * Support for overloaded functions
 * No additional dependencies
 * No unsafe code
