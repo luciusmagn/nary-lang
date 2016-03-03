@@ -1,10 +1,18 @@
 # Rhai - embedded scripting for Rust
 
-Rhai is an embedded scripting language for Rust.  It is meant to be a safe drop-in for your own projects and doesn't use any additional dependencies, unsafe code, or APIs outside of the ones you provide in your program.  This allows you to have rich control over the functionality exposed to the scripting context.
+Rhai is an embedded scripting language for Rust that gives you a safe and easy way to add scripting to your applications.  
 
-# Features
+Rhai's current feature set:
 
-**Note:** Currently, it's pre-0.1, and is likely to change a bit before it stabilizes enough for a crates.io release.
+* Easy integration with Rust functions and data types
+* Fairly efficient (1 mil iterations in 0.75 sec on my 5 year old laptop)
+* Low compile-time overhead (~4 secs for debug build, ~11 secs for release build)
+* Easy-to-use language based on JS+Rust
+* Support for overloaded functions
+* No additional dependencies
+* No unsafe code
+
+**Note:** Currently, it's pre-0.1, and is likely to change a bit before it stabilizes enough for a crates.io release.*
 
 ## Variables
 
@@ -18,16 +26,35 @@ var x = 3;
 if true { 
     print("it's true!");
 }
+else {
+    print("It's false!");
+}
 ```
 
 ```Rust
 var x = 10;
 while x > 0 { 
     print(x);
+    if x == 5 {
+        break;
+    }
+    x = x - 1;
 }
 ```
 
 ## Functions
+
+Rhai supports defining functions in script:
+
+```Rust
+fn add(x, y) {
+    return x + y;
+}
+
+print(add(2, 3))
+```
+
+Just like in Rust, you can also use an implicit return.
 
 ```Rust
 fn add(x, y) {
@@ -36,6 +63,7 @@ fn add(x, y) {
 
 print(add(2, 3))
 ```
+
 
 # Example 1: Hello world
 
@@ -83,6 +111,8 @@ fn main() {
     &(showit as fn(x: &mut String)->()).register(&mut engine, "print");
 }
 ```
+
+You can also see in this example how you can register multiple functions (or in this case multiple instances of the same function) to the same name in script.  The scripting engine will handle looking up the correct function during function resolution.
 
 # Example 4: Working with custom types and methods
 
