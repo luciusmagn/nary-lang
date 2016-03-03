@@ -85,7 +85,7 @@ pub struct FnDef {
 
 #[derive(Debug, Clone)]
 pub enum Stmt { If(Box<Expr>, Box<Stmt>), IfElse(Box<Expr>, Box<Stmt>, Box<Stmt>), While(Box<Expr>, Box<Stmt>), 
-    Var(String, Option<Box<Expr>>), Block(Box<Vec<Stmt>>), Expr(Box<Expr>) }
+    Var(String, Option<Box<Expr>>), Block(Box<Vec<Stmt>>), Expr(Box<Expr>), Break, Return, ReturnWithVal(Box<Expr>) }
 
 #[derive(Debug, Clone)]
 pub enum Expr { IntConst(i32), Identifier(String), StringConst(String), FnCall(String, Box<Vec<Expr>>), 
@@ -95,7 +95,7 @@ pub enum Expr { IntConst(i32), Identifier(String), StringConst(String), FnCall(S
 pub enum Token { IntConst(i32), Identifier(String), StringConst(String), LCurly, RCurly, LParen, RParen, LSquare, RSquare,
     Plus, Minus, Multiply, Divide, Semicolon, Colon, Comma, Period, Equals, True, False, Var, If, Else, While,
     LessThan, GreaterThan, Bang, LessThanEqual, GreaterThanEqual, EqualTo, NotEqualTo, Pipe, Or, Ampersand, And, Fn,
-    LexErr(LexError) }
+    Break, Return, LexErr(LexError) }
 
 pub struct TokenIterator<'a> {
     char_stream: Peekable<Chars<'a>>
@@ -156,6 +156,12 @@ impl<'a> Iterator for TokenIterator<'a> {
                     }
                     else if out == "while" {
                         return Some(Token::While);
+                    }
+                    else if out == "break" {
+                        return Some(Token::Break);
+                    }
+                    else if out == "return" {
+                        return Some(Token::Return);
                     }
                     else if out == "fn" {
                         return Some(Token::Fn);
@@ -569,6 +575,14 @@ fn parse_stmt<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<Stmt, Parse
     match input.peek() {
         Some(& Token::If) => parse_if(input),
         Some(& Token::While) => parse_while(input),
+        Some(& Token::Break) => {input.next(); Ok(Stmt::Break)},
+        Some(& Token::Return) => {
+            input.next(); 
+            match input.peek() {
+                Some(& Token::Semicolon) => Ok(Stmt::Return),
+                _ => {let ret = try!(parse_expr(input)); Ok(Stmt::ReturnWithVal(Box::new(ret))) }
+            }
+        }
         Some(& Token::LCurly) => parse_block(input),
         Some(& Token::Var) => parse_var(input),
         _ => parse_expr_stmt(input)
