@@ -7,7 +7,7 @@ Rhai's current feature set:
 * Easy integration with Rust functions and data types
 * Fairly efficient (1 mil iterations in 0.75 sec on my 5 year old laptop)
 * Low compile-time overhead (~4 secs for debug build, ~11 secs for release build)
-* Simple, easy-to-use language features
+* Easy-to-use language based on JS+Rust
 * Support for overloaded functions
 * No additional dependencies
 * No unsafe code
@@ -111,6 +111,8 @@ fn main() {
     &(showit as fn(x: &mut String)->()).register(&mut engine, "print");
 }
 ```
+
+You can also see in this example how you can register multiple functions (or in this case multiple instances of the same function) to the same name in script.  The scripting engine will handle looking up the correct function during function resolution.
 
 # Example 4: Working with custom types and methods
 
