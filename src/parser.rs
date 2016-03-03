@@ -341,6 +341,7 @@ fn get_precedence(token: &Token) -> i32 {
         Token::NotEqualTo => 15,
         Token::Plus => 20,
         Token::Minus => 20,
+        Token::Divide => 40,
         Token::Multiply => 40,
         _ => -1
     }

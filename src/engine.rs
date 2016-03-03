@@ -695,7 +695,7 @@ fn test_number_literal() {
 }
 
 #[test]
-fn test_addition() {
+fn test_ops() {
     let mut engine = Engine::new();
 
     if let Ok(result) = engine.eval("60 + 5".to_string()).unwrap().downcast::<i32>() {
@@ -704,6 +704,13 @@ fn test_addition() {
     else {
         assert!(false);
     }
+
+    if let Ok(result) = engine.eval("(1 + 2) * (6 - 4) / 2".to_string()).unwrap().downcast::<i32>() {
+        assert_eq!(*result, 3);
+    }
+    else {
+        assert!(false);
+    }    
 }
 
 #[test]
