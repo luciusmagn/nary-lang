@@ -65,7 +65,7 @@ print(add(2, 3))
 ```
 
 
-# Example 1: Hello world
+# Example: Hello world
 
 ```Rust
 extern crate rhai;
@@ -79,7 +79,7 @@ fn main() {
     }
 }
 ```
-# Example 2: Working with functions
+# Example: Working with functions
 
 Rhai's scripting engine is very lightweight.  It gets its ability from the functions in your program.  To call these functions, you need to register them with the scripting engine.
 
@@ -102,7 +102,7 @@ fn main() {
 }
 ```
 
-# Example 3: Working with generic functions
+# Example: Working with generic functions
 
 Generic functions can be used in Rhai, but you'll need to register separate instances for each concrete type:
 
@@ -127,7 +127,7 @@ fn main() {
 
 You can also see in this example how you can register multiple functions (or in this case multiple instances of the same function) to the same name in script.  The scripting engine will handle looking up the correct function during function resolution.
 
-# Example 4: Working with custom types and methods
+# Example: Working with custom types and methods
 
 Here's an more complete example of working with Rust.  First the example, then we'll break it into parts:
 
