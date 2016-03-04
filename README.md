@@ -217,3 +217,25 @@ if let Ok(result) = engine.eval("var x = new_ts(); x.update(); x".to_string()).u
     println!("result: {}", result.x); // prints 1001
 }
 ```
+
+# Example: Maintaining state
+
+By default, Rhai treats each engine invocation as a fresh one, persisting only the functions that have been defined but no top-level state.  This gives each one a fairly clean starting place.  Sometimes, though, you want to continue using the same top-level state from one invocation to the next.
+
+In this example, we thread the same state through multiple invocations:
+
+```Rust
+extern crate rhai;
+use rhai::{Engine, Scope};
+
+fn main() {
+    let mut engine = Engine::new();
+    let mut scope: Scope = Vec::new();
+
+    if let Ok(_) = engine.eval_with_scope(&mut scope, "var x = 4 + 5".to_string()) { } else { assert!(false); }    
+
+    if let Ok(result) = engine.eval_with_scope(&mut scope, "x".to_string()).unwrap().downcast::<i32>() {
+       println!("result: {}", result);
+    }
+}
+```
