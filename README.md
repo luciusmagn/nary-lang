@@ -14,6 +14,10 @@ Rhai's current feature set:
 
 **Note:** Currently, it's pre-0.1, and is likely to change a bit before it stabilizes enough for a crates.io release.*
 
+Other cool projects to check out:
+* [ChaiScript](http://chaiscript.com/) - A strong inspiration for Rhai.  An embedded scripting language for C++ that I helped created many moons ago, now being lead by my cousin.
+* [Dyon](https://github.com/PistonDevelopers/dyon) - A scripting language for writing games in Rust.
+
 ## Variables
 
 ```Rust
