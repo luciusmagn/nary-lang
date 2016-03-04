@@ -28,6 +28,7 @@ var x = (1 + 2) * (6 - 4) / 2;
 
 ## Control blocks
 
+### If
 ```Rust
 if true { 
     print("it's true!");
@@ -37,6 +38,7 @@ else {
 }
 ```
 
+### While
 ```Rust
 var x = 10;
 while x > 0 { 
