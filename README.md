@@ -6,7 +6,7 @@ Rhai's current feature set:
 
 * Easy integration with Rust functions and data types
 * Fairly efficient (1 mil iterations in 0.75 sec on my 5 year old laptop)
-* Low compile-time overhead (~4 secs for debug build, ~11 secs for release build)
+* Low compile-time overhead (~0.6sec debug/~3sec release for runner app)
 * Easy-to-use language based on JS+Rust
 * Support for overloaded functions
 * No additional dependencies
