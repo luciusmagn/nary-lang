@@ -133,7 +133,7 @@ fn main() {
 }
 ```
 
-You can also see in this example how you can register multiple functions (or in this case multiple instances of the same function) to the same name in script.  The scripting engine will handle looking up the correct function during function resolution.
+You can also see in this example how you can register multiple functions (or in this case multiple instances of the same function) to the same name in script.  This gives you a way to overload functions and call the correct one, based on the types of the arguments, from your script.
 
 # Example: Working with custom types and methods
 
