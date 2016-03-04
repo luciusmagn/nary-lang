@@ -16,7 +16,7 @@ Rhai's current feature set:
 
 Other cool projects to check out:
 * [ChaiScript](http://chaiscript.com/) - A strong inspiration for Rhai.  An embedded scripting language for C++ that I helped created many moons ago, now being lead by my cousin.
-* [Dyon](https://github.com/PistonDevelopers/dyon) - A scripting language for writing games in Rust.
+* [Dyon](https://github.com/PistonDevelopers/dyon) - A scripting language for Rust that's part of the Piston game engine.
 
 ## Variables
 
