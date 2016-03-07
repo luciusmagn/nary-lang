@@ -43,7 +43,6 @@ pub enum ParseError {
     MissingRCurly,
     MalformedCallExpr,
     VarExpectsIdentifier,
-    ExpectedMethodInvocation,
     FnMissingName,
     FnMissingParams
 }
@@ -59,7 +58,6 @@ impl Error for ParseError {
             ParseError::MissingRCurly => "Expected '}'",
             ParseError::MalformedCallExpr => "Call contains bad expression",
             ParseError::VarExpectsIdentifier => "'var' expects the name of a variable",
-            ParseError::ExpectedMethodInvocation => "Expected method call after '.'",
             ParseError::FnMissingName => "Function declaration is missing name",
             ParseError::FnMissingParams => "Function declaration is missing parameters"
         }
@@ -89,7 +87,7 @@ pub enum Stmt { If(Box<Expr>, Box<Stmt>), IfElse(Box<Expr>, Box<Stmt>, Box<Stmt>
 
 #[derive(Debug, Clone)]
 pub enum Expr { IntConst(i32), Identifier(String), StringConst(String), FnCall(String, Box<Vec<Expr>>), 
-    MethodCall(String, String, Box<Vec<Expr>>), Assignment(Box<Expr>, Box<Expr>), True, False }
+    Assignment(Box<Expr>, Box<Expr>), Dot(Box<Expr>, Box<Expr>), True, False }
 
 #[derive(Debug)]
 pub enum Token { IntConst(i32), Identifier(String), StringConst(String), LCurly, RCurly, LParen, RParen, LSquare, RSquare,
@@ -343,6 +341,7 @@ fn get_precedence(token: &Token) -> i32 {
         Token::Minus => 20,
         Token::Divide => 40,
         Token::Multiply => 40,
+        Token::Period => 100,
         _ => -1
     }
 }
@@ -357,18 +356,6 @@ fn parse_paren_expr<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<Expr,
 }
 
 fn parse_ident_expr<'a>(id: String, input: &mut Peekable<TokenIterator<'a>>) -> Result<Expr, ParseError> {    
-    let id2 = match input.peek() {
-        Some(&Token::Period) => {
-            input.next();
-            match input.next() {
-                Some(Token::Identifier(ref s)) => {
-                    s.clone()
-                }
-                _ => return Err(ParseError::ExpectedMethodInvocation)
-            }
-        },
-        _ => String::new()
-    };
     match input.peek() {
         Some(&Token::LParen) => {input.next();},
         _ => return Ok(Expr::Identifier(id))
@@ -379,12 +366,7 @@ fn parse_ident_expr<'a>(id: String, input: &mut Peekable<TokenIterator<'a>>) -> 
     match input.peek() {
         Some(&Token::RParen) => {
             input.next(); 
-            if id2 == "" {
-                return Ok(Expr::FnCall(id, Box::new(args)))
-            }
-            else {
-                return Ok(Expr::MethodCall(id, id2, Box::new(args)))
-            }
+            return Ok(Expr::FnCall(id, Box::new(args)))
         },
         _ => ()
     }
@@ -400,12 +382,7 @@ fn parse_ident_expr<'a>(id: String, input: &mut Peekable<TokenIterator<'a>>) -> 
         match input.peek() {
             Some(&Token::RParen) => {
                 input.next();
-                if id2 == "" {
-                    return Ok(Expr::FnCall(id, Box::new(args)))
-                }
-                else {
-                    return Ok(Expr::MethodCall(id, id2, Box::new(args)))
-                }
+                return Ok(Expr::FnCall(id, Box::new(args)))
             },
             Some(&Token::Comma) => (),
             _ => return Err(ParseError::MalformedCallExpr)
@@ -459,6 +436,10 @@ fn parse_binop<'a>(input: &mut Peekable<TokenIterator<'a>>, prec: i32, lhs: Expr
             if curr_prec < next_prec {
                 rhs = try!(parse_binop(input, curr_prec+1, rhs));
             }
+            else if curr_prec >= 100 {
+                //Always bind right to left for precedence over 100
+                rhs = try!(parse_binop(input, curr_prec, rhs));    
+            }
 
             lhs_curr = match op_token {
                 Token::Plus => Expr::FnCall("+".to_string(), Box::new(vec![lhs_curr, rhs])),
@@ -466,6 +447,7 @@ fn parse_binop<'a>(input: &mut Peekable<TokenIterator<'a>>, prec: i32, lhs: Expr
                 Token::Multiply => Expr::FnCall("*".to_string(), Box::new(vec![lhs_curr, rhs])),
                 Token::Divide => Expr::FnCall("/".to_string(), Box::new(vec![lhs_curr, rhs])),
                 Token::Equals => Expr::Assignment(Box::new(lhs_curr), Box::new(rhs)),
+                Token::Period => Expr::Dot(Box::new(lhs_curr), Box::new(rhs)),
                 Token::EqualTo => Expr::FnCall("==".to_string(), Box::new(vec![lhs_curr, rhs])),
                 Token::NotEqualTo => Expr::FnCall("!=".to_string(), Box::new(vec![lhs_curr, rhs])),
                 Token::LessThan => Expr::FnCall("<".to_string(), Box::new(vec![lhs_curr, rhs])),

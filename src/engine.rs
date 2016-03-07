@@ -18,6 +18,7 @@ pub enum EvalAltResult {
     ErrorIfGuardMismatch,
     ErrorVariableNotFound,
     ErrorFunctionArityNotSupported,
+    InternalErrorMalformedDotExpression,
     LoopBreak,
     Return(Box<Any>)
 }
@@ -31,6 +32,7 @@ impl Error for EvalAltResult {
             EvalAltResult::ErrorIfGuardMismatch => "If guards expect boolean expression",
             EvalAltResult::ErrorVariableNotFound => "Variable not found",
             EvalAltResult::ErrorFunctionArityNotSupported => "Functions of more than 3 parameters are not yet supported",
+            EvalAltResult::InternalErrorMalformedDotExpression => "[Internal error] Unexpected expression in dot expression",
             EvalAltResult::LoopBreak => "Loop broken before completion (not an error)",
             EvalAltResult::Return(_) => "Function returned value (not an error)"
         }
@@ -319,6 +321,146 @@ impl Engine {
         &(clone_helper as fn(T)->T).register(self, "clone");
     }
 
+    fn get_dot_val_helper(&self, scope: &mut Scope, this_ptr: &mut Box<Any>, dot_rhs: &Expr) -> Result<Box<Any>, EvalAltResult> {
+        match *dot_rhs {
+            Expr::FnCall(ref fn_name, ref args) => {                
+                if args.len() == 0 {
+                    return self.call_fn(&fn_name, Some(this_ptr), None, None, None, None, None);
+                }
+                else if args.len() == 1 {
+                    let mut arg = try!(self.eval_expr(scope, &args[0]));
+
+                    return self.call_fn(&fn_name, Some(this_ptr), Some(&mut arg), None, None, None, None);
+                }
+                else if args.len() == 2 {
+                    let mut arg1 = try!(self.eval_expr(scope, &args[0]));
+                    let mut arg2 = try!(self.eval_expr(scope, &args[1]));
+
+                    return self.call_fn(&fn_name, Some(this_ptr), Some(&mut arg1), Some(&mut arg2), None, None, None);
+                }
+                else if args.len() == 3 {
+                    let mut arg1 = try!(self.eval_expr(scope, &args[0]));
+                    let mut arg2 = try!(self.eval_expr(scope, &args[1]));
+                    let mut arg3 = try!(self.eval_expr(scope, &args[2]));
+
+                    return self.call_fn(&fn_name, Some(this_ptr), Some(&mut arg1), Some(&mut arg2), Some(&mut arg3), None, None);
+                }
+                else if args.len() == 4 {
+                    let mut arg1 = try!(self.eval_expr(scope, &args[0]));
+                    let mut arg2 = try!(self.eval_expr(scope, &args[1]));
+                    let mut arg3 = try!(self.eval_expr(scope, &args[2]));
+                    let mut arg4 = try!(self.eval_expr(scope, &args[3]));
+
+                    return self.call_fn(&fn_name, Some(this_ptr), Some(&mut arg1), Some(&mut arg2), Some(&mut arg3), 
+                        Some(&mut arg4), None);
+                }
+                else if args.len() == 5 {
+                    let mut arg1 = try!(self.eval_expr(scope, &args[0]));
+                    let mut arg2 = try!(self.eval_expr(scope, &args[1]));
+                    let mut arg3 = try!(self.eval_expr(scope, &args[2]));
+                    let mut arg4 = try!(self.eval_expr(scope, &args[3]));
+                    let mut arg5 = try!(self.eval_expr(scope, &args[4]));
+
+                    return self.call_fn(&fn_name, Some(this_ptr), Some(&mut arg1), Some(&mut arg2), Some(&mut arg3), 
+                        Some(&mut arg4), Some(&mut arg5));
+                }
+                else {
+                    Err(EvalAltResult::ErrorFunctionCallNotSupported)
+                }
+            }
+            Expr::Identifier(ref id) => {
+                let get_fn_name = "get$".to_string() + id;
+                return self.call_fn(&get_fn_name, Some(this_ptr), None, None, None, None, None);
+            }
+            _ => Err(EvalAltResult::InternalErrorMalformedDotExpression)
+        }
+    }
+
+    fn get_dot_val(&self, scope: &mut Scope, dot_lhs: &Expr, dot_rhs: &Expr) -> Result<Box<Any>, EvalAltResult> {
+        match *dot_lhs {
+            Expr::Identifier(ref id) => {
+                let mut target : Option<Box<Any>> = None;
+
+                for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev() {
+                    if *id == *name {
+                        if let Ok(clone) = self.call_fn("clone", Some(val), None, None, None, None, None) {
+                            target = Some(clone);
+                            break;
+                        }
+                        else {
+                            println!("Error when cloning");
+                            return Err(EvalAltResult::ErrorVariableNotFound);
+                        }
+                    }
+                }
+
+                if let Some(mut t) = target {
+                    let result = self.get_dot_val_helper(scope, &mut t, dot_rhs);
+
+                    for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev() {
+                        if *id == *name {
+                            *val = t;
+                            break;
+                        }
+                    }
+                    return result;
+                }
+
+                println!("Error finding target: {}", id);
+                return Err(EvalAltResult::ErrorVariableNotFound);
+            }
+            _ => Err(EvalAltResult::InternalErrorMalformedDotExpression)
+        }
+    }
+
+    fn set_dot_val_helper(&self, this_ptr: &mut Box<Any>, dot_rhs: &Expr, mut source_val: Box<Any>) -> Result<Box<Any>, EvalAltResult> {
+        match *dot_rhs {
+            Expr::Identifier(ref id) => {
+                let set_fn_name = "set$".to_string() + id;
+
+                println!("calling: {}", set_fn_name);
+
+                self.call_fn(&set_fn_name, Some(this_ptr), Some(&mut source_val), None, None, None, None)
+            }
+            _ => Err(EvalAltResult::InternalErrorMalformedDotExpression)
+        }
+    }
+
+    fn set_dot_val(&self, scope: &mut Scope, dot_lhs: &Expr, dot_rhs: &Expr, source_val: Box<Any>) -> Result<Box<Any>, EvalAltResult> {
+        match *dot_lhs {
+            Expr::Identifier(ref id) => {
+                let mut target : Option<Box<Any>> = None;
+
+                for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev() {
+                    if *id == *name {
+                        if let Ok(clone) = self.call_fn("clone", Some(val), None, None, None, None, None) {
+                            target = Some(clone);
+                            break;
+                        }
+                        else {
+                            return Err(EvalAltResult::ErrorVariableNotFound);
+                        }
+                    }
+                }
+
+                if let Some(mut t) = target {
+                    let result = self.set_dot_val_helper(&mut t, dot_rhs, source_val);
+
+                    for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev() {
+                        if *id == *name {
+                            *val = t;
+                            break;
+                        }
+                    }
+                    return result;
+                }
+
+                return Err(EvalAltResult::ErrorVariableNotFound);
+            }
+            _ => Err(EvalAltResult::InternalErrorMalformedDotExpression)
+        }
+    }
+
     fn eval_expr(&self, scope: &mut Scope, expr: &Expr) -> Result<Box<Any>, EvalAltResult> {
         match *expr {
             Expr::IntConst(i) => Ok(Box::new(i)),
@@ -345,8 +487,16 @@ impl Engine {
                         }
                         Err(EvalAltResult::ErrorVariableNotFound)
                     }
+                    Expr::Dot(ref dot_lhs, ref dot_rhs) => {
+                        let rhs_val = try!(self.eval_expr(scope, rhs));
+
+                        self.set_dot_val(scope, dot_lhs, dot_rhs, rhs_val)
+                    }
                     _ => Err(EvalAltResult::ErrorVariableNotFound)
                 }
+            }
+            Expr::Dot(ref lhs, ref rhs) => {
+                self.get_dot_val(scope, lhs, rhs)
             }
             Expr::FnCall(ref fn_name, ref args) => {
                 if args.len() == 0 {
@@ -398,81 +548,6 @@ impl Engine {
 
                     self.call_fn(&fn_name, Some(&mut arg1), Some(&mut arg2), Some(&mut arg3), Some(&mut arg4), 
                         Some(&mut arg5), Some(&mut arg6))
-                }
-                else {
-                    Err(EvalAltResult::ErrorFunctionCallNotSupported)
-                }
-            }
-            Expr::MethodCall(ref target, ref fn_name, ref args) => {                
-                if args.len() == 0 {
-                    for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev() {
-                        if *target == *name {
-                            return self.call_fn(&fn_name, Some(val), None, None, None, None, None);
-                        }
-                    }
-                    Err(EvalAltResult::ErrorVariableNotFound)
-                }
-                else if args.len() == 1 {
-                    let mut arg = try!(self.eval_expr(scope, &args[0]));
-
-                    for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev() {
-                        if *target == *name {
-                            return self.call_fn(&fn_name, Some(val), Some(&mut arg), None, None, None, None);
-                        }
-                    }
-                    Err(EvalAltResult::ErrorVariableNotFound)
-                }
-                else if args.len() == 2 {
-                    let mut arg1 = try!(self.eval_expr(scope, &args[0]));
-                    let mut arg2 = try!(self.eval_expr(scope, &args[1]));
-
-                    for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev() {
-                        if *target == *name {
-                            return self.call_fn(&fn_name, Some(val), Some(&mut arg1), Some(&mut arg2), None, None, None);
-                        }
-                    }
-                    Err(EvalAltResult::ErrorVariableNotFound)
-                }
-                else if args.len() == 3 {
-                    let mut arg1 = try!(self.eval_expr(scope, &args[0]));
-                    let mut arg2 = try!(self.eval_expr(scope, &args[1]));
-                    let mut arg3 = try!(self.eval_expr(scope, &args[2]));
-
-                    for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev() {
-                        if *target == *name {
-                            return self.call_fn(&fn_name, Some(val), Some(&mut arg1), Some(&mut arg2), Some(&mut arg3), None, None);
-                        }
-                    }
-                    Err(EvalAltResult::ErrorVariableNotFound)
-                }
-                else if args.len() == 4 {
-                    let mut arg1 = try!(self.eval_expr(scope, &args[0]));
-                    let mut arg2 = try!(self.eval_expr(scope, &args[1]));
-                    let mut arg3 = try!(self.eval_expr(scope, &args[2]));
-                    let mut arg4 = try!(self.eval_expr(scope, &args[3]));
-
-                    for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev() {
-                        if *target == *name {
-                            return self.call_fn(&fn_name, Some(val), Some(&mut arg1), Some(&mut arg2), Some(&mut arg3), 
-                                Some(&mut arg4), None);
-                        }
-                    }
-                    Err(EvalAltResult::ErrorVariableNotFound)
-                }
-                else if args.len() == 5 {
-                    let mut arg1 = try!(self.eval_expr(scope, &args[0]));
-                    let mut arg2 = try!(self.eval_expr(scope, &args[1]));
-                    let mut arg3 = try!(self.eval_expr(scope, &args[2]));
-                    let mut arg4 = try!(self.eval_expr(scope, &args[3]));
-                    let mut arg5 = try!(self.eval_expr(scope, &args[4]));
-
-                    for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev() {
-                        if *target == *name {
-                            return self.call_fn(&fn_name, Some(val), Some(&mut arg1), Some(&mut arg2), Some(&mut arg3), 
-                                Some(&mut arg4), Some(&mut arg5));
-                        }
-                    }
-                    Err(EvalAltResult::ErrorVariableNotFound)
                 }
                 else {
                     Err(EvalAltResult::ErrorFunctionCallNotSupported)
@@ -851,6 +926,43 @@ fn test_method_call() {
         assert!(false);
     }
 
+}
+
+#[test]
+fn test_get_set() {
+    #[derive(Debug, Clone)]
+    struct TestStruct {
+        x: i32
+    }
+
+    impl TestStruct {
+        fn get_x(&mut self) -> i32 {
+            self.x
+        }
+
+        fn set_x(&mut self, new_x: i32) {
+            self.x = new_x;
+        }
+
+        fn new() -> TestStruct {
+            TestStruct { x: 1 }
+        }
+    }
+
+    let mut engine = Engine::new();
+
+    engine.register_type::<TestStruct>();
+
+    &(TestStruct::get_x as fn(&mut TestStruct)->i32).register(&mut engine, "get$x");
+    &(TestStruct::set_x as fn(&mut TestStruct, i32)->()).register(&mut engine, "set$x");
+    &(TestStruct::new as fn()->TestStruct).register(&mut engine, "new_ts");
+
+    if let Ok(result) = engine.eval("var a = new_ts(); a.x = 500; a.x".to_string()).unwrap().downcast::<i32>() {
+        assert_eq!(*result, 500);
+    }
+    else {
+        assert!(false);
+    }
 }
 
 #[test]
