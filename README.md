@@ -225,7 +225,7 @@ if let Ok(result) = engine.eval("var x = new_ts(); x.update(); x".to_string()).u
 }
 ```
 
-# Example: working with custom types and members
+# Example: Working with custom types and members
 
 Similarly, you can work with members of your custom types.  This works by registering a 'get' or a 'set' function for working with your struct.  
 
