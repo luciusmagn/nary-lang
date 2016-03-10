@@ -16,8 +16,9 @@ pub enum EvalAltResult {
     ErrorFunctionArgMismatch,
     ErrorFunctionCallNotSupported,
     ErrorIfGuardMismatch,
-    ErrorVariableNotFound,
+    ErrorVariableNotFound(String),
     ErrorFunctionArityNotSupported,
+    ErrorAssignmentToUnknownLHS,
     InternalErrorMalformedDotExpression,
     LoopBreak,
     Return(Box<Any>)
@@ -30,8 +31,9 @@ impl Error for EvalAltResult {
             EvalAltResult::ErrorFunctionArgMismatch => "Function argument types do not match",
             EvalAltResult::ErrorFunctionCallNotSupported => "Function call with > 2 argument not supported",
             EvalAltResult::ErrorIfGuardMismatch => "If guards expect boolean expression",
-            EvalAltResult::ErrorVariableNotFound => "Variable not found",
+            EvalAltResult::ErrorVariableNotFound(ref s) => {println!("Var {} not found", s); "Variable not found"},
             EvalAltResult::ErrorFunctionArityNotSupported => "Functions of more than 3 parameters are not yet supported",
+            EvalAltResult::ErrorAssignmentToUnknownLHS => "Assignment to an unsupported left-hand side",
             EvalAltResult::InternalErrorMalformedDotExpression => "[Internal error] Unexpected expression in dot expression",
             EvalAltResult::LoopBreak => "Loop broken before completion (not an error)",
             EvalAltResult::Return(_) => "Function returned value (not an error)"
@@ -372,6 +374,20 @@ impl Engine {
                 let get_fn_name = "get$".to_string() + id;
                 return self.call_fn(&get_fn_name, Some(this_ptr), None, None, None, None, None);
             }
+            Expr::Dot(ref inner_lhs, ref inner_rhs) => {
+                match **inner_lhs {
+                    Expr::Identifier(ref id) => {
+                        let get_fn_name = "get$".to_string() + id;
+                        let result = self.call_fn(&get_fn_name, Some(this_ptr), None, None, None, None, None);
+
+                        match result {
+                            Ok(mut v) => return self.get_dot_val_helper(scope, &mut v, inner_rhs),
+                            e => return e
+                        }                        
+                    }
+                    _ => Err(EvalAltResult::InternalErrorMalformedDotExpression)
+                }
+            }
             _ => Err(EvalAltResult::InternalErrorMalformedDotExpression)
         }
     }
@@ -383,13 +399,15 @@ impl Engine {
 
                 for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev() {
                     if *id == *name {
-                        if let Ok(clone) = self.call_fn("clone", Some(val), None, None, None, None, None) {
+                        let result = self.call_fn("clone", Some(val), None, None, None, None, None);
+
+                        if let Ok(clone) = result {
                             target = Some(clone);
                             break;
                         }
                         else {
                             println!("Error when cloning");
-                            return Err(EvalAltResult::ErrorVariableNotFound);
+                            return result;
                         }
                     }
                 }
@@ -407,7 +425,7 @@ impl Engine {
                 }
 
                 println!("Error finding target: {}", id);
-                return Err(EvalAltResult::ErrorVariableNotFound);
+                return Err(EvalAltResult::ErrorVariableNotFound(id.clone()));
             }
             _ => Err(EvalAltResult::InternalErrorMalformedDotExpression)
         }
@@ -422,7 +440,36 @@ impl Engine {
 
                 self.call_fn(&set_fn_name, Some(this_ptr), Some(&mut source_val), None, None, None, None)
             }
-            _ => Err(EvalAltResult::InternalErrorMalformedDotExpression)
+            Expr::Dot(ref inner_lhs, ref inner_rhs) => {
+                match **inner_lhs {
+                    Expr::Identifier(ref id) => {
+                        println!("Setting into Dot");
+
+                        let get_fn_name = "get$".to_string() + id;
+                        let result = self.call_fn(&get_fn_name, Some(this_ptr), None, None, None, None, None);
+
+                        match result {
+                            Ok(mut v) => {
+                                match self.set_dot_val_helper(&mut v, inner_rhs, source_val) {
+                                    Ok(_) => {
+                                        let set_fn_name = "set$".to_string() + id;
+
+                                        self.call_fn(&set_fn_name, Some(this_ptr), Some(&mut v), None, None, None, None)
+                                    }
+                                    e => e
+                                }
+                            },
+                            e => e
+                        }                        
+
+                    }
+                    _ => Err(EvalAltResult::InternalErrorMalformedDotExpression)
+                }
+            }
+            _ => {
+                println!("Setting into unknown AST node");
+                Err(EvalAltResult::InternalErrorMalformedDotExpression)                
+            }
         }
     }
 
@@ -438,7 +485,7 @@ impl Engine {
                             break;
                         }
                         else {
-                            return Err(EvalAltResult::ErrorVariableNotFound);
+                            return Err(EvalAltResult::ErrorVariableNotFound(id.clone()));
                         }
                     }
                 }
@@ -455,7 +502,7 @@ impl Engine {
                     return result;
                 }
 
-                return Err(EvalAltResult::ErrorVariableNotFound);
+                return Err(EvalAltResult::ErrorAssignmentToUnknownLHS);
             }
             _ => Err(EvalAltResult::InternalErrorMalformedDotExpression)
         }
@@ -471,7 +518,7 @@ impl Engine {
                         return self.call_fn("clone", Some(val), None, None, None, None, None);
                     }
                 }
-                Err(EvalAltResult::ErrorVariableNotFound)
+                Err(EvalAltResult::ErrorVariableNotFound(id.clone()))
             }
             Expr::Assignment(ref id, ref rhs) => {
                 match **id {
@@ -485,14 +532,14 @@ impl Engine {
                                 return Ok(Box::new(()));
                             }
                         }
-                        Err(EvalAltResult::ErrorVariableNotFound)
+                        Err(EvalAltResult::ErrorVariableNotFound(n.clone()))
                     }
                     Expr::Dot(ref dot_lhs, ref dot_rhs) => {
                         let rhs_val = try!(self.eval_expr(scope, rhs));
 
                         self.set_dot_val(scope, dot_lhs, dot_rhs, rhs_val)
                     }
-                    _ => Err(EvalAltResult::ErrorVariableNotFound)
+                    _ => Err(EvalAltResult::ErrorAssignmentToUnknownLHS)
                 }
             }
             Expr::Dot(ref lhs, ref rhs) => {
@@ -958,6 +1005,67 @@ fn test_get_set() {
     &(TestStruct::new as fn()->TestStruct).register(&mut engine, "new_ts");
 
     if let Ok(result) = engine.eval("var a = new_ts(); a.x = 500; a.x".to_string()).unwrap().downcast::<i32>() {
+        assert_eq!(*result, 500);
+    }
+    else {
+        assert!(false);
+    }
+}
+
+#[test]
+fn test_big_get_set() {
+    #[derive(Debug, Clone)]
+    struct TestChild {
+        x: i32
+    }
+
+    impl TestChild {
+        fn get_x(&mut self) -> i32 {
+            self.x
+        }
+
+        fn set_x(&mut self, new_x: i32) {
+            self.x = new_x;
+        }
+
+        fn new() -> TestChild {
+            TestChild { x: 1 }
+        }
+    }
+
+    #[derive(Debug, Clone)]
+    struct TestParent {
+        child: TestChild
+    }
+
+    impl TestParent {
+        fn get_child(&mut self) -> TestChild {
+            self.child.clone()
+        }
+
+        fn set_child(&mut self, new_child: TestChild) {
+            self.child = new_child;
+        }
+
+        fn new() -> TestParent {
+            TestParent { child: TestChild::new() }
+        }
+
+    }
+
+    let mut engine = Engine::new();
+
+    engine.register_type::<TestChild>();
+    engine.register_type::<TestParent>();
+
+    &(TestChild::get_x as fn(&mut TestChild)->i32).register(&mut engine, "get$x");
+    &(TestChild::set_x as fn(&mut TestChild, i32)->()).register(&mut engine, "set$x");
+
+    &(TestParent::get_child as fn(&mut TestParent)->TestChild).register(&mut engine, "get$child");
+    &(TestParent::set_child as fn(&mut TestParent, TestChild)->()).register(&mut engine, "set$child");
+    &(TestParent::new as fn()->TestParent).register(&mut engine, "new_tp");
+
+    if let Ok(result) = engine.eval("var a = new_tp(); a.child.x = 500; a.child.x".to_string()).unwrap().downcast::<i32>() {
         assert_eq!(*result, 500);
     }
     else {
