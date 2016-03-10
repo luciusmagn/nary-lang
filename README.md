@@ -76,6 +76,13 @@ fn add(x, y) {
 print(add(2, 3))
 ```
 
+## Members and methods
+
+```Rust
+var a = new_ts(); 
+a.x = 500;
+a.update();
+```
 
 # Example: Hello world
 
@@ -218,6 +225,45 @@ if let Ok(result) = engine.eval("var x = new_ts(); x.update(); x".to_string()).u
 }
 ```
 
+# Example: working with custom types and members
+
+Similarly, you can work with members of your custom types.  This works by registering a 'get' or a 'set' function for working with your struct.  
+
+For example:
+
+```Rust
+#[derive(Clone)]
+struct TestStruct {
+    x: i32
+}
+
+impl TestStruct {
+    fn get_x(&mut self) -> i32 {
+        self.x
+    }
+
+    fn set_x(&mut self, new_x: i32) {
+        self.x = new_x;
+    }
+
+    fn new() -> TestStruct {
+        TestStruct { x: 1 }
+    }
+}
+
+let mut engine = Engine::new();
+
+engine.register_type::<TestStruct>();
+
+&(TestStruct::get_x as fn(&mut TestStruct)->i32).register(&mut engine, "get$x");
+&(TestStruct::set_x as fn(&mut TestStruct, i32)->()).register(&mut engine, "set$x");
+&(TestStruct::new as fn()->TestStruct).register(&mut engine, "new_ts");
+
+if let Ok(result) = engine.eval("var a = new_ts(); a.x = 500; a.x".to_string()).unwrap().downcast::<i32>() {
+    println!("result: {}", result);
+}
+```
+
 # Example: Maintaining state
 
 By default, Rhai treats each engine invocation as a fresh one, persisting only the functions that have been defined but no top-level state.  This gives each one a fairly clean starting place.  Sometimes, though, you want to continue using the same top-level state from one invocation to the next.
@@ -239,3 +285,4 @@ fn main() {
     }
 }
 ```
+
