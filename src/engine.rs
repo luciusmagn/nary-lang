@@ -31,7 +31,7 @@ impl Error for EvalAltResult {
             EvalAltResult::ErrorFunctionArgMismatch => "Function argument types do not match",
             EvalAltResult::ErrorFunctionCallNotSupported => "Function call with > 2 argument not supported",
             EvalAltResult::ErrorIfGuardMismatch => "If guards expect boolean expression",
-            EvalAltResult::ErrorVariableNotFound(ref s) => {println!("Var {} not found", s); "Variable not found"},
+            EvalAltResult::ErrorVariableNotFound(_) => "Variable not found",
             EvalAltResult::ErrorFunctionArityNotSupported => "Functions of more than 3 parameters are not yet supported",
             EvalAltResult::ErrorAssignmentToUnknownLHS => "Assignment to an unsupported left-hand side",
             EvalAltResult::InternalErrorMalformedDotExpression => "[Internal error] Unexpected expression in dot expression",
@@ -406,7 +406,6 @@ impl Engine {
                             break;
                         }
                         else {
-                            println!("Error when cloning");
                             return result;
                         }
                     }
@@ -424,7 +423,6 @@ impl Engine {
                     return result;
                 }
 
-                println!("Error finding target: {}", id);
                 return Err(EvalAltResult::ErrorVariableNotFound(id.clone()));
             }
             _ => Err(EvalAltResult::InternalErrorMalformedDotExpression)
@@ -435,16 +433,11 @@ impl Engine {
         match *dot_rhs {
             Expr::Identifier(ref id) => {
                 let set_fn_name = "set$".to_string() + id;
-
-                println!("calling: {}", set_fn_name);
-
                 self.call_fn(&set_fn_name, Some(this_ptr), Some(&mut source_val), None, None, None, None)
             }
             Expr::Dot(ref inner_lhs, ref inner_rhs) => {
                 match **inner_lhs {
                     Expr::Identifier(ref id) => {
-                        println!("Setting into Dot");
-
                         let get_fn_name = "get$".to_string() + id;
                         let result = self.call_fn(&get_fn_name, Some(this_ptr), None, None, None, None, None);
 
@@ -467,7 +460,6 @@ impl Engine {
                 }
             }
             _ => {
-                println!("Setting into unknown AST node");
                 Err(EvalAltResult::InternalErrorMalformedDotExpression)                
             }
         }
@@ -944,7 +936,7 @@ fn test_var_scope() {
 
 #[test]
 fn test_method_call() {
-    #[derive(Debug, Clone)]
+    #[derive(Clone)]
     struct TestStruct {
         x: i32
     }
@@ -977,7 +969,7 @@ fn test_method_call() {
 
 #[test]
 fn test_get_set() {
-    #[derive(Debug, Clone)]
+    #[derive(Clone)]
     struct TestStruct {
         x: i32
     }
@@ -1014,7 +1006,7 @@ fn test_get_set() {
 
 #[test]
 fn test_big_get_set() {
-    #[derive(Debug, Clone)]
+    #[derive(Clone)]
     struct TestChild {
         x: i32
     }
@@ -1033,7 +1025,7 @@ fn test_big_get_set() {
         }
     }
 
-    #[derive(Debug, Clone)]
+    #[derive(Clone)]
     struct TestParent {
         child: TestChild
     }
@@ -1063,6 +1055,7 @@ fn test_big_get_set() {
 
     &(TestParent::get_child as fn(&mut TestParent)->TestChild).register(&mut engine, "get$child");
     &(TestParent::set_child as fn(&mut TestParent, TestChild)->()).register(&mut engine, "set$child");
+
     &(TestParent::new as fn()->TestParent).register(&mut engine, "new_tp");
 
     if let Ok(result) = engine.eval("var a = new_tp(); a.child.x = 500; a.child.x".to_string()).unwrap().downcast::<i32>() {
