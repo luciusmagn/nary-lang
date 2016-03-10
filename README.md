@@ -154,7 +154,7 @@ Here's an more complete example of working with Rust.  First the example, then w
 extern crate rhai;
 use rhai::{Engine, FnRegister};
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 struct TestStruct {
     x: i32
 }
@@ -186,7 +186,7 @@ fn main() {
 First, for each type we use with the engine, we need to be able to Clone.  This allows the engine to pass by value and still keep its own state.
 
 ```Rust
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 struct TestStruct {
     x: i32
 }
