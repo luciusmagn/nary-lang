@@ -12,7 +12,18 @@ Rhai's current feature set:
 * No additional dependencies
 * No unsafe code
 
-**Note:** Currently, it's pre-0.1, and is likely to change a bit before it stabilizes enough for a crates.io release.*
+**Note:** Currently, it's version 0.1.0, so it's likely to change a bit before it stabilizes enough for a crates.io release.*
+
+## Installation
+
+You can install Rhai using crates by adding this line to your dependences:
+
+```
+[dependencies]
+rhai = "0.1.0"
+```
+
+## Related
 
 Other cool projects to check out:
 * [ChaiScript](http://chaiscript.com/) - A strong inspiration for Rhai.  An embedded scripting language for C++ that I helped created many moons ago, now being lead by my cousin.
