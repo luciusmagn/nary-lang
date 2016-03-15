@@ -12,7 +12,7 @@ Rhai's current feature set:
 * No additional dependencies
 * No unsafe code
 
-**Note:** Currently, it's version 0.1.0, so it's likely to change a bit before it stabilizes enough for a crates.io release.*
+**Note:** Currently, it's version 0.1.0, so the language and APIs may change before they stabilize.*
 
 ## Installation
 
