@@ -19,7 +19,8 @@ pub enum EvalAltResult {
     ErrorVariableNotFound(String),
     ErrorFunctionArityNotSupported,
     ErrorAssignmentToUnknownLHS,
-    InternalErrorMalformedDotExpression,
+    ErrorMismatchOutputType,
+    InternalErrorMalformedDotExpression,    
     LoopBreak,
     Return(Box<Any>)
 }
@@ -34,6 +35,7 @@ impl Error for EvalAltResult {
             EvalAltResult::ErrorVariableNotFound(_) => "Variable not found",
             EvalAltResult::ErrorFunctionArityNotSupported => "Functions of more than 3 parameters are not yet supported",
             EvalAltResult::ErrorAssignmentToUnknownLHS => "Assignment to an unsupported left-hand side",
+            EvalAltResult::ErrorMismatchOutputType => "Cast of output failed",
             EvalAltResult::InternalErrorMalformedDotExpression => "[Internal error] Unexpected expression in dot expression",
             EvalAltResult::LoopBreak => "Loop broken before completion (not an error)",
             EvalAltResult::Return(_) => "Function returned value (not an error)"
@@ -693,13 +695,13 @@ impl Engine {
         }
     }
 
-    pub fn eval(&mut self, input: &str) -> Result<Box<Any>, EvalAltResult> {
+    pub fn eval<T:Any+Clone>(&mut self, input: &str) -> Result<T, EvalAltResult> {
         let mut scope: Scope = Vec::new();
 
         self.eval_with_scope(&mut scope, input)
     }
 
-    pub fn eval_with_scope(&mut self, scope: &mut Scope, input: &str) -> Result<Box<Any>, EvalAltResult> {
+    pub fn eval_with_scope<T:Any+Clone>(&mut self, scope: &mut Scope, input: &str) -> Result<T, EvalAltResult> {
         let tokens = lex(input);
 
         let mut peekables = tokens.peekable();
@@ -720,9 +722,21 @@ impl Engine {
                 }
 
                 for o in os {
-                    x = self.eval_stmt(scope, &o);
+                    x = match self.eval_stmt(scope, &o) {
+                        Ok(v) => Ok(v),
+                        Err(e) => return Err(e)
+                    }
                 }
-                x
+
+                match x {
+                    Ok(v) => {
+                        match v.downcast::<T>() {
+                            Ok(out) => Ok(*out),
+                            Err(_) => Err(EvalAltResult::ErrorMismatchOutputType)
+                        }
+                    }
+                    Err(e) => Err(e)
+                }
             }
             Err(_) => Err(EvalAltResult::ErrorFunctionArgMismatch)
         }
@@ -800,8 +814,8 @@ impl Engine {
 fn test_number_literal() {
     let mut engine = Engine::new();
 
-    if let Ok(result) = engine.eval("65").unwrap().downcast::<i32>() {
-        assert_eq!(*result, 65);
+    if let Ok(result) = engine.eval::<i32>("65") {
+        assert_eq!(result, 65);
     }
     else {
         assert!(false);
@@ -812,15 +826,15 @@ fn test_number_literal() {
 fn test_ops() {
     let mut engine = Engine::new();
 
-    if let Ok(result) = engine.eval("60 + 5").unwrap().downcast::<i32>() {
-        assert_eq!(*result, 65);
+    if let Ok(result) = engine.eval::<i32>("60 + 5") {
+        assert_eq!(result, 65);
     }
     else {
         assert!(false);
     }
 
-    if let Ok(result) = engine.eval("(1 + 2) * (6 - 4) / 2").unwrap().downcast::<i32>() {
-        assert_eq!(*result, 3);
+    if let Ok(result) = engine.eval::<i32>("(1 + 2) * (6 - 4) / 2") {
+        assert_eq!(result, 3);
     }
     else {
         assert!(false);
@@ -831,8 +845,8 @@ fn test_ops() {
 fn test_bool_op1() {
     let mut engine = Engine::new();
 
-    if let Ok(result) = engine.eval("true && (false || true)").unwrap().downcast::<bool>() {
-        assert_eq!(*result, true);
+    if let Ok(result) = engine.eval::<bool>("true && (false || true)") {
+        assert_eq!(result, true);
     }
     else {
         assert!(false);
@@ -843,8 +857,8 @@ fn test_bool_op1() {
 fn test_bool_op2() {
     let mut engine = Engine::new();
 
-    if let Ok(result) = engine.eval("false && (false || true)").unwrap().downcast::<bool>() {
-        assert_eq!(*result, false);
+    if let Ok(result) = engine.eval::<bool>("false && (false || true)") {
+        assert_eq!(result, false);
     }
     else {
         assert!(false);
@@ -855,8 +869,8 @@ fn test_bool_op2() {
 fn test_op_prec() {
     let mut engine = Engine::new();
 
-    if let Ok(result) = engine.eval("var x = 0; if x == 10 || true { x = 1} x").unwrap().downcast::<i32>() {
-        assert_eq!(*result, 1);
+    if let Ok(result) = engine.eval::<i32>("var x = 0; if x == 10 || true { x = 1} x") {
+        assert_eq!(result, 1);
     }
     else {
         assert!(false);
@@ -867,22 +881,22 @@ fn test_op_prec() {
 fn test_if() {
     let mut engine = Engine::new();
 
-    if let Ok(result) = engine.eval("if true { 55 }").unwrap().downcast::<i32>() {
-        assert_eq!(*result, 55);
+    if let Ok(result) = engine.eval::<i32>("if true { 55 }") {
+        assert_eq!(result, 55);
     }
     else {
         assert!(false);
     }
 
-    if let Ok(result) = engine.eval("if false { 55 } else { 44 }").unwrap().downcast::<i32>() {
-        assert_eq!(*result, 44);
+    if let Ok(result) = engine.eval::<i32>("if false { 55 } else { 44 }") {
+        assert_eq!(result, 44);
     }
     else {
         assert!(false);
     }
 
-    if let Ok(result) = engine.eval("if true { 55 } else { 44 }").unwrap().downcast::<i32>() {
-        assert_eq!(*result, 55);
+    if let Ok(result) = engine.eval::<i32>("if true { 55 } else { 44 }") {
+        assert_eq!(result, 55);
     }
     else {
         assert!(false);
@@ -893,8 +907,8 @@ fn test_if() {
 fn test_while() {
     let mut engine = Engine::new();
 
-    if let Ok(result) = engine.eval("var x = 0; while x < 10 { x = x + 1; if x > 5 { break } } x").unwrap().downcast::<i32>() {
-        assert_eq!(*result, 6);
+    if let Ok(result) = engine.eval::<i32>("var x = 0; while x < 10 { x = x + 1; if x > 5 { break } } x") {
+        assert_eq!(result, 6);
     }
     else {
         assert!(false);
@@ -906,28 +920,28 @@ fn test_var_scope() {
     let mut engine = Engine::new();
     let mut scope: Scope = Vec::new();
 
-    if let Ok(_) = engine.eval_with_scope(&mut scope, "var x = 4 + 5") { } else { assert!(false); }    
+    if let Ok(_) = engine.eval_with_scope::<()>(&mut scope, "var x = 4 + 5") { } else { assert!(false); }    
 
-    if let Ok(result) = engine.eval_with_scope(&mut scope, "x").unwrap().downcast::<i32>() {
-        assert_eq!(*result, 9);
+    if let Ok(result) = engine.eval_with_scope::<i32>(&mut scope, "x") {
+        assert_eq!(result, 9);
     }
     else {
         assert!(false);
     }    
 
-    if let Ok(_) = engine.eval_with_scope(&mut scope, "x = x + 1; x = x + 2;") { } else { assert!(false); }
+    if let Ok(_) = engine.eval_with_scope::<()>(&mut scope, "x = x + 1; x = x + 2;") { } else { assert!(false); }
 
-    if let Ok(result) = engine.eval_with_scope(&mut scope, "x").unwrap().downcast::<i32>() {
-        assert_eq!(*result, 12);
+    if let Ok(result) = engine.eval_with_scope::<i32>(&mut scope, "x") {
+        assert_eq!(result, 12);
     }
     else {
         assert!(false);
     }
 
-    if let Ok(_) = engine.eval_with_scope(&mut scope, "{var x = 3}") { } else { assert!(false); }
+    if let Ok(_) = engine.eval_with_scope::<()>(&mut scope, "{var x = 3}") { } else { assert!(false); }
 
-    if let Ok(result) = engine.eval_with_scope(&mut scope, "x").unwrap().downcast::<i32>() {
-        assert_eq!(*result, 12);
+    if let Ok(result) = engine.eval_with_scope::<i32>(&mut scope, "x") {
+        assert_eq!(result, 12);
     }
     else {
         assert!(false);
@@ -958,7 +972,7 @@ fn test_method_call() {
     engine.register_fn("update", TestStruct::update);
     engine.register_fn("new_ts", TestStruct::new);
 
-    if let Ok(result) = engine.eval("var x = new_ts(); x.update(); x").unwrap().downcast::<TestStruct>() {
+    if let Ok(result) = engine.eval::<TestStruct>("var x = new_ts(); x.update(); x") {
         assert_eq!(result.x, 1001);
     }
     else {
@@ -996,8 +1010,8 @@ fn test_get_set() {
     engine.register_fn("set$x", TestStruct::set_x);
     engine.register_fn("new_ts", TestStruct::new);
 
-    if let Ok(result) = engine.eval("var a = new_ts(); a.x = 500; a.x").unwrap().downcast::<i32>() {
-        assert_eq!(*result, 500);
+    if let Ok(result) = engine.eval::<i32>("var a = new_ts(); a.x = 500; a.x") {
+        assert_eq!(result, 500);
     }
     else {
         assert!(false);
@@ -1056,8 +1070,8 @@ fn test_big_get_set() {
     engine.register_fn("set$child", TestParent::set_child);
     engine.register_fn("new_tp", TestParent::new);
 
-    if let Ok(result) = engine.eval("var a = new_tp(); a.child.x = 500; a.child.x").unwrap().downcast::<i32>() {
-        assert_eq!(*result, 500);
+    if let Ok(result) = engine.eval::<i32>("var a = new_tp(); a.child.x = 500; a.child.x") {
+        assert_eq!(result, 500);
     }
     else {
         assert!(false);
@@ -1068,15 +1082,15 @@ fn test_big_get_set() {
 fn test_internal_fn() {
     let mut engine = Engine::new();
 
-    if let Ok(result) = engine.eval("fn addme(a, b) { a+b } addme(3, 4)").unwrap().downcast::<i32>() {
-        assert_eq!(*result, 7);
+    if let Ok(result) = engine.eval::<i32>("fn addme(a, b) { a+b } addme(3, 4)") {
+        assert_eq!(result, 7);
     }
     else {
         assert!(false);
     }
 
-    if let Ok(result) = engine.eval("fn bob() { return 4; 5 } bob()").unwrap().downcast::<i32>() {
-        assert_eq!(*result, 4);
+    if let Ok(result) = engine.eval::<i32>("fn bob() { return 4; 5 } bob()") {
+        assert_eq!(result, 4);
     }
     else {
         assert!(false);
@@ -1087,8 +1101,8 @@ fn test_internal_fn() {
 fn test_big_internal_fn() {
     let mut engine = Engine::new();
 
-    if let Ok(result) = engine.eval("fn mathme(a, b, c, d, e, f) { a - b * c + d * e - f } mathme(100, 5, 2, 9, 6, 32)").unwrap().downcast::<i32>() {
-        assert_eq!(*result, 112);
+    if let Ok(result) = engine.eval::<i32>("fn mathme(a, b, c, d, e, f) { a - b * c + d * e - f } mathme(100, 5, 2, 9, 6, 32)") {
+        assert_eq!(result, 112);
     }
     else {
         assert!(false);
@@ -1099,8 +1113,8 @@ fn test_big_internal_fn() {
 fn test_string() {
     let mut engine = Engine::new();
 
-    if let Ok(result) = engine.eval("\"Test string: \\u2764\"").unwrap().downcast::<String>() {
-        assert_eq!(*result, "Test string: ❤");
+    if let Ok(result) = engine.eval::<String>("\"Test string: \\u2764\"") {
+        assert_eq!(result, "Test string: ❤");
     }
     else {
         assert!(false);

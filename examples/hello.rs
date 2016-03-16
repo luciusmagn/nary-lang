@@ -4,7 +4,7 @@ use rhai::Engine;
 fn main() {
     let mut engine = Engine::new();
 
-    if let Ok(result) = engine.eval("40 + 2").unwrap().downcast::<i32>() {
-        println!("Answer: {}", *result);  // prints 42
+    if let Ok(result) = engine.eval::<i32>("40 + 2") {
+        println!("Answer: {}", result);  // prints 42
     }
 }

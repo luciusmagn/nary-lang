@@ -10,7 +10,7 @@ fn main() {
 
     engine.register_fn("add", add);
  
-    if let Ok(result) = engine.eval("add(40, 2)").unwrap().downcast::<i32>() {
-       println!("Answer: {}", *result);  // prints 42
+    if let Ok(result) = engine.eval::<i32>("add(40, 2)") {
+       println!("Answer: {}", result);  // prints 42
     }
 }

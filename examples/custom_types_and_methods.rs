@@ -24,7 +24,7 @@ fn main() {
     engine.register_fn("update", TestStruct::update);
     engine.register_fn("new_ts", TestStruct::new);
 
-    if let Ok(result) = engine.eval("var x = new_ts(); x.update(); x").unwrap().downcast::<TestStruct>() {
+    if let Ok(result) = engine.eval::<TestStruct>("var x = new_ts(); x.update(); x") {
         println!("result: {}", result.x); // prints 1001
     }
 }

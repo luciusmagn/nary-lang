@@ -27,7 +27,7 @@ fn main() {
             let mut contents = String::new();
             
             if let Ok(_) = f.read_to_string(&mut contents) {
-                match engine.eval(&contents) {
+                match engine.eval::<()>(&contents) {
                     Ok(_) => (),
                     Err(e) => {println!("Error: {:?}", e)}
                 }
