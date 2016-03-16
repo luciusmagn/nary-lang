@@ -322,7 +322,7 @@ impl<'a> Iterator for TokenIterator<'a> {
     }
 }
 
-pub fn lex<'a>(input: &'a String) -> TokenIterator<'a> {
+pub fn lex<'a>(input: &'a str) -> TokenIterator<'a> {
     TokenIterator { char_stream: input.chars().peekable() }
 }
 

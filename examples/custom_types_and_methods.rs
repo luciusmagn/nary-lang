@@ -21,10 +21,10 @@ fn main() {
 
     engine.register_type::<TestStruct>();
 
-    &(TestStruct::update as fn(&mut TestStruct)->()).register(&mut engine, "update");
-    &(TestStruct::new as fn()->TestStruct).register(&mut engine, "new_ts");
+    engine.register_fn("update", TestStruct::update);
+    engine.register_fn("new_ts", TestStruct::new);
 
-    if let Ok(result) = engine.eval("var x = new_ts(); x.update(); x".to_string()).unwrap().downcast::<TestStruct>() {
+    if let Ok(result) = engine.eval("var x = new_ts(); x.update(); x").unwrap().downcast::<TestStruct>() {
         println!("result: {}", result.x); // prints 1001
     }
 }

@@ -320,7 +320,7 @@ impl Engine {
     pub fn register_type<T: Clone+Any>(&mut self) {
         fn clone_helper<T: Clone>(t:T)->T { t.clone() };
 
-        &(clone_helper as fn(T)->T).register(self, "clone");
+        self.register_fn("clone", clone_helper as fn(T)->T);
     }
 
     fn get_dot_val_helper(&self, scope: &mut Scope, this_ptr: &mut Box<Any>, dot_rhs: &Expr) -> Result<Box<Any>, EvalAltResult> {
@@ -693,14 +693,14 @@ impl Engine {
         }
     }
 
-    pub fn eval(&mut self, input: String) -> Result<Box<Any>, EvalAltResult> {
+    pub fn eval(&mut self, input: &str) -> Result<Box<Any>, EvalAltResult> {
         let mut scope: Scope = Vec::new();
 
         self.eval_with_scope(&mut scope, input)
     }
 
-    pub fn eval_with_scope(&mut self, scope: &mut Scope, input: String) -> Result<Box<Any>, EvalAltResult> {
-        let tokens = lex(&input);
+    pub fn eval_with_scope(&mut self, scope: &mut Scope, input: &str) -> Result<Box<Any>, EvalAltResult> {
+        let tokens = lex(input);
 
         let mut peekables = tokens.peekable();
         let tree = parse(&mut peekables);
@@ -742,15 +742,15 @@ impl Engine {
         macro_rules! reg_op {
             ($engine:expr, $x:expr, $op:expr, $( $y:ty ),*) => (
                 $(
-                    ($op as fn(x: $y, y: $y)->$y).register($engine, $x);
+                    $engine.register_fn($x, ($op as fn(x: $y, y: $y)->$y));
                 )*
             )
         }
-
+        
         macro_rules! reg_cmp {
             ($engine:expr, $x:expr, $op:expr, $( $y:ty ),*) => (
                 $(
-                    ($op as fn(x: $y, y: $y)->bool).register($engine, $x);
+                    $engine.register_fn($x, ($op as fn(x: $y, y: $y)->bool));
                 )*
             )
         }
@@ -800,7 +800,7 @@ impl Engine {
 fn test_number_literal() {
     let mut engine = Engine::new();
 
-    if let Ok(result) = engine.eval("65".to_string()).unwrap().downcast::<i32>() {
+    if let Ok(result) = engine.eval("65").unwrap().downcast::<i32>() {
         assert_eq!(*result, 65);
     }
     else {
@@ -812,14 +812,14 @@ fn test_number_literal() {
 fn test_ops() {
     let mut engine = Engine::new();
 
-    if let Ok(result) = engine.eval("60 + 5".to_string()).unwrap().downcast::<i32>() {
+    if let Ok(result) = engine.eval("60 + 5").unwrap().downcast::<i32>() {
         assert_eq!(*result, 65);
     }
     else {
         assert!(false);
     }
 
-    if let Ok(result) = engine.eval("(1 + 2) * (6 - 4) / 2".to_string()).unwrap().downcast::<i32>() {
+    if let Ok(result) = engine.eval("(1 + 2) * (6 - 4) / 2").unwrap().downcast::<i32>() {
         assert_eq!(*result, 3);
     }
     else {
@@ -831,7 +831,7 @@ fn test_ops() {
 fn test_bool_op1() {
     let mut engine = Engine::new();
 
-    if let Ok(result) = engine.eval("true && (false || true)".to_string()).unwrap().downcast::<bool>() {
+    if let Ok(result) = engine.eval("true && (false || true)").unwrap().downcast::<bool>() {
         assert_eq!(*result, true);
     }
     else {
@@ -843,7 +843,7 @@ fn test_bool_op1() {
 fn test_bool_op2() {
     let mut engine = Engine::new();
 
-    if let Ok(result) = engine.eval("false && (false || true)".to_string()).unwrap().downcast::<bool>() {
+    if let Ok(result) = engine.eval("false && (false || true)").unwrap().downcast::<bool>() {
         assert_eq!(*result, false);
     }
     else {
@@ -855,7 +855,7 @@ fn test_bool_op2() {
 fn test_op_prec() {
     let mut engine = Engine::new();
 
-    if let Ok(result) = engine.eval("var x = 0; if x == 10 || true { x = 1} x".to_string()).unwrap().downcast::<i32>() {
+    if let Ok(result) = engine.eval("var x = 0; if x == 10 || true { x = 1} x").unwrap().downcast::<i32>() {
         assert_eq!(*result, 1);
     }
     else {
@@ -867,21 +867,21 @@ fn test_op_prec() {
 fn test_if() {
     let mut engine = Engine::new();
 
-    if let Ok(result) = engine.eval("if true { 55 }".to_string()).unwrap().downcast::<i32>() {
+    if let Ok(result) = engine.eval("if true { 55 }").unwrap().downcast::<i32>() {
         assert_eq!(*result, 55);
     }
     else {
         assert!(false);
     }
 
-    if let Ok(result) = engine.eval("if false { 55 } else { 44 }".to_string()).unwrap().downcast::<i32>() {
+    if let Ok(result) = engine.eval("if false { 55 } else { 44 }").unwrap().downcast::<i32>() {
         assert_eq!(*result, 44);
     }
     else {
         assert!(false);
     }
 
-    if let Ok(result) = engine.eval("if true { 55 } else { 44 }".to_string()).unwrap().downcast::<i32>() {
+    if let Ok(result) = engine.eval("if true { 55 } else { 44 }").unwrap().downcast::<i32>() {
         assert_eq!(*result, 55);
     }
     else {
@@ -893,7 +893,7 @@ fn test_if() {
 fn test_while() {
     let mut engine = Engine::new();
 
-    if let Ok(result) = engine.eval("var x = 0; while x < 10 { x = x + 1; if x > 5 { break } } x".to_string()).unwrap().downcast::<i32>() {
+    if let Ok(result) = engine.eval("var x = 0; while x < 10 { x = x + 1; if x > 5 { break } } x").unwrap().downcast::<i32>() {
         assert_eq!(*result, 6);
     }
     else {
@@ -906,27 +906,27 @@ fn test_var_scope() {
     let mut engine = Engine::new();
     let mut scope: Scope = Vec::new();
 
-    if let Ok(_) = engine.eval_with_scope(&mut scope, "var x = 4 + 5".to_string()) { } else { assert!(false); }    
+    if let Ok(_) = engine.eval_with_scope(&mut scope, "var x = 4 + 5") { } else { assert!(false); }    
 
-    if let Ok(result) = engine.eval_with_scope(&mut scope, "x".to_string()).unwrap().downcast::<i32>() {
+    if let Ok(result) = engine.eval_with_scope(&mut scope, "x").unwrap().downcast::<i32>() {
         assert_eq!(*result, 9);
     }
     else {
         assert!(false);
     }    
 
-    if let Ok(_) = engine.eval_with_scope(&mut scope, "x = x + 1; x = x + 2;".to_string()) { } else { assert!(false); }
+    if let Ok(_) = engine.eval_with_scope(&mut scope, "x = x + 1; x = x + 2;") { } else { assert!(false); }
 
-    if let Ok(result) = engine.eval_with_scope(&mut scope, "x".to_string()).unwrap().downcast::<i32>() {
+    if let Ok(result) = engine.eval_with_scope(&mut scope, "x").unwrap().downcast::<i32>() {
         assert_eq!(*result, 12);
     }
     else {
         assert!(false);
     }
 
-    if let Ok(_) = engine.eval_with_scope(&mut scope, "{var x = 3}".to_string()) { } else { assert!(false); }
+    if let Ok(_) = engine.eval_with_scope(&mut scope, "{var x = 3}") { } else { assert!(false); }
 
-    if let Ok(result) = engine.eval_with_scope(&mut scope, "x".to_string()).unwrap().downcast::<i32>() {
+    if let Ok(result) = engine.eval_with_scope(&mut scope, "x").unwrap().downcast::<i32>() {
         assert_eq!(*result, 12);
     }
     else {
@@ -955,10 +955,10 @@ fn test_method_call() {
 
     engine.register_type::<TestStruct>();
 
-    &(TestStruct::update as fn(&mut TestStruct)->()).register(&mut engine, "update");
-    &(TestStruct::new as fn()->TestStruct).register(&mut engine, "new_ts");
+    engine.register_fn("update", TestStruct::update);
+    engine.register_fn("new_ts", TestStruct::new);
 
-    if let Ok(result) = engine.eval("var x = new_ts(); x.update(); x".to_string()).unwrap().downcast::<TestStruct>() {
+    if let Ok(result) = engine.eval("var x = new_ts(); x.update(); x").unwrap().downcast::<TestStruct>() {
         assert_eq!(result.x, 1001);
     }
     else {
@@ -992,11 +992,11 @@ fn test_get_set() {
 
     engine.register_type::<TestStruct>();
 
-    &(TestStruct::get_x as fn(&mut TestStruct)->i32).register(&mut engine, "get$x");
-    &(TestStruct::set_x as fn(&mut TestStruct, i32)->()).register(&mut engine, "set$x");
-    &(TestStruct::new as fn()->TestStruct).register(&mut engine, "new_ts");
+    engine.register_fn("get$x", TestStruct::get_x);
+    engine.register_fn("set$x", TestStruct::set_x);
+    engine.register_fn("new_ts", TestStruct::new);
 
-    if let Ok(result) = engine.eval("var a = new_ts(); a.x = 500; a.x".to_string()).unwrap().downcast::<i32>() {
+    if let Ok(result) = engine.eval("var a = new_ts(); a.x = 500; a.x").unwrap().downcast::<i32>() {
         assert_eq!(*result, 500);
     }
     else {
@@ -1050,15 +1050,13 @@ fn test_big_get_set() {
     engine.register_type::<TestChild>();
     engine.register_type::<TestParent>();
 
-    &(TestChild::get_x as fn(&mut TestChild)->i32).register(&mut engine, "get$x");
-    &(TestChild::set_x as fn(&mut TestChild, i32)->()).register(&mut engine, "set$x");
+    engine.register_fn("get$x", TestChild::get_x);
+    engine.register_fn("set$x", TestChild::set_x);
+    engine.register_fn("get$child", TestParent::get_child);
+    engine.register_fn("set$child", TestParent::set_child);
+    engine.register_fn("new_tp", TestParent::new);
 
-    &(TestParent::get_child as fn(&mut TestParent)->TestChild).register(&mut engine, "get$child");
-    &(TestParent::set_child as fn(&mut TestParent, TestChild)->()).register(&mut engine, "set$child");
-
-    &(TestParent::new as fn()->TestParent).register(&mut engine, "new_tp");
-
-    if let Ok(result) = engine.eval("var a = new_tp(); a.child.x = 500; a.child.x".to_string()).unwrap().downcast::<i32>() {
+    if let Ok(result) = engine.eval("var a = new_tp(); a.child.x = 500; a.child.x").unwrap().downcast::<i32>() {
         assert_eq!(*result, 500);
     }
     else {
@@ -1070,14 +1068,14 @@ fn test_big_get_set() {
 fn test_internal_fn() {
     let mut engine = Engine::new();
 
-    if let Ok(result) = engine.eval("fn addme(a, b) { a+b } addme(3, 4)".to_string()).unwrap().downcast::<i32>() {
+    if let Ok(result) = engine.eval("fn addme(a, b) { a+b } addme(3, 4)").unwrap().downcast::<i32>() {
         assert_eq!(*result, 7);
     }
     else {
         assert!(false);
     }
 
-    if let Ok(result) = engine.eval("fn bob() { return 4; 5 } bob()".to_string()).unwrap().downcast::<i32>() {
+    if let Ok(result) = engine.eval("fn bob() { return 4; 5 } bob()").unwrap().downcast::<i32>() {
         assert_eq!(*result, 4);
     }
     else {
@@ -1089,7 +1087,7 @@ fn test_internal_fn() {
 fn test_big_internal_fn() {
     let mut engine = Engine::new();
 
-    if let Ok(result) = engine.eval("fn mathme(a, b, c, d, e, f) { a - b * c + d * e - f } mathme(100, 5, 2, 9, 6, 32)".to_string()).unwrap().downcast::<i32>() {
+    if let Ok(result) = engine.eval("fn mathme(a, b, c, d, e, f) { a - b * c + d * e - f } mathme(100, 5, 2, 9, 6, 32)").unwrap().downcast::<i32>() {
         assert_eq!(*result, 112);
     }
     else {
@@ -1101,7 +1099,7 @@ fn test_big_internal_fn() {
 fn test_string() {
     let mut engine = Engine::new();
 
-    if let Ok(result) = engine.eval("\"Test string: \\u2764\"".to_string()).unwrap().downcast::<String>() {
+    if let Ok(result) = engine.eval("\"Test string: \\u2764\"").unwrap().downcast::<String>() {
         assert_eq!(*result, "Test string: ❤");
     }
     else {
