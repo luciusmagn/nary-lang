@@ -842,6 +842,16 @@ fn test_ops() {
 }
 
 #[test]
+fn test_mismatched_op() {
+    let mut engine = Engine::new();
+
+    match engine.eval::<i32>("60 + \"hello\"") {
+        Err(EvalAltResult::ErrorFunctionArgMismatch) => (),
+        _ => assert!(false)
+    }
+}
+
+#[test]
 fn test_bool_op1() {
     let mut engine = Engine::new();
 
