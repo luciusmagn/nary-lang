@@ -1,7 +1,7 @@
 extern crate rhai;
 use rhai::{Engine, FnRegister};
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 struct TestStruct {
     x: i32
 }
