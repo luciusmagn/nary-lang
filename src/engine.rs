@@ -20,6 +20,7 @@ pub enum EvalAltResult {
     ErrorFunctionArityNotSupported,
     ErrorAssignmentToUnknownLHS,
     ErrorMismatchOutputType,
+    ErrorCantOpenScriptFile,
     InternalErrorMalformedDotExpression,    
     LoopBreak,
     Return(Box<Any>)
@@ -36,6 +37,7 @@ impl Error for EvalAltResult {
             EvalAltResult::ErrorFunctionArityNotSupported => "Functions of more than 3 parameters are not yet supported",
             EvalAltResult::ErrorAssignmentToUnknownLHS => "Assignment to an unsupported left-hand side",
             EvalAltResult::ErrorMismatchOutputType => "Cast of output failed",
+            EvalAltResult::ErrorCantOpenScriptFile => "Cannot open script file",
             EvalAltResult::InternalErrorMalformedDotExpression => "[Internal error] Unexpected expression in dot expression",
             EvalAltResult::LoopBreak => "Loop broken before completion (not an error)",
             EvalAltResult::Return(_) => "Function returned value (not an error)"
@@ -323,6 +325,27 @@ impl Engine {
         fn clone_helper<T: Clone>(t:T)->T { t.clone() };
 
         self.register_fn("clone", clone_helper as fn(T)->T);
+    }
+
+    pub fn register_get<T: Clone+Any, U: Clone+Any, F>(&mut self, name: &str, get_fn: F) 
+        where F : 'static+Fn(&mut T)->U {
+        
+        let get_name = "get$".to_string() + name;        
+        self.register_fn(&get_name, get_fn);
+    }
+
+    pub fn register_set<T: Clone+Any, U: Clone+Any, F>(&mut self, name: &str, set_fn: F)
+        where F : 'static+Fn(&mut T, U)->() {
+        
+        let set_name = "set$".to_string() + name;        
+        self.register_fn(&set_name, set_fn);
+    }
+
+    pub fn register_get_set<T: Clone+Any, U: Clone+Any, F, G>(&mut self, name: &str, get_fn: F, set_fn: G) 
+        where F : 'static+Fn(&mut T)->U, G : 'static+Fn(&mut T, U)->() {
+
+        self.register_get(name, get_fn);
+        self.register_set(name, set_fn);
     }
 
     fn get_dot_val_helper(&self, scope: &mut Scope, this_ptr: &mut Box<Any>, dot_rhs: &Expr) -> Result<Box<Any>, EvalAltResult> {
@@ -695,6 +718,25 @@ impl Engine {
         }
     }
 
+    pub fn eval_file<T:Any+Clone>(&mut self, fname: &str) -> Result<T, EvalAltResult> {
+        use std::fs::File;
+        use std::io::prelude::*;
+
+        if let Ok(mut f) = File::open(fname.clone()) {
+            let mut contents = String::new();
+            
+            if let Ok(_) = f.read_to_string(&mut contents) {
+                self.eval::<T>(&contents)
+            }
+            else {
+                Err(EvalAltResult::ErrorCantOpenScriptFile)
+            }        
+        }
+        else {
+            Err(EvalAltResult::ErrorCantOpenScriptFile)
+        }        
+    }
+
     pub fn eval<T:Any+Clone>(&mut self, input: &str) -> Result<T, EvalAltResult> {
         let mut scope: Scope = Vec::new();
 
@@ -1016,8 +1058,7 @@ fn test_get_set() {
 
     engine.register_type::<TestStruct>();
 
-    engine.register_fn("get$x", TestStruct::get_x);
-    engine.register_fn("set$x", TestStruct::set_x);
+    engine.register_get_set("x", TestStruct::get_x, TestStruct::set_x);
     engine.register_fn("new_ts", TestStruct::new);
 
     if let Ok(result) = engine.eval::<i32>("var a = new_ts(); a.x = 500; a.x") {
@@ -1074,10 +1115,9 @@ fn test_big_get_set() {
     engine.register_type::<TestChild>();
     engine.register_type::<TestParent>();
 
-    engine.register_fn("get$x", TestChild::get_x);
-    engine.register_fn("set$x", TestChild::set_x);
-    engine.register_fn("get$child", TestParent::get_child);
-    engine.register_fn("set$child", TestParent::set_child);
+    engine.register_get_set("x", TestChild::get_x, TestChild::set_x);
+    engine.register_get_set("child", TestParent::get_child, TestParent::set_child);
+
     engine.register_fn("new_tp", TestParent::new);
 
     if let Ok(result) = engine.eval::<i32>("var a = new_tp(); a.child.x = 500; a.child.x") {

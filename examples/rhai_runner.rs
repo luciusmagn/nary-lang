@@ -1,6 +1,4 @@
 use std::env;
-use std::fs::File;
-use std::io::prelude::*;
 use std::fmt::Display;
 
 extern crate rhai;
@@ -23,15 +21,9 @@ fn main() {
         engine.register_fn("print", showit as fn(x: &mut bool)->());
         engine.register_fn("print", showit as fn(x: &mut String)->());
 
-        if let Ok(mut f) = File::open(fname.clone()) {
-            let mut contents = String::new();
-            
-            if let Ok(_) = f.read_to_string(&mut contents) {
-                match engine.eval::<()>(&contents) {
-                    Ok(_) => (),
-                    Err(e) => {println!("Error: {:?}", e)}
-                }
-            }
+        match engine.eval_file::<()>(&fname) {
+            Ok(_) => (),
+            Err(e) => {println!("Error: {:?}", e)}
         }
     }
 }
