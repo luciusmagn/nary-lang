@@ -20,7 +20,7 @@ You can install Rhai using crates by adding this line to your dependences:
 
 ```
 [dependencies]
-rhai = "0.1.0"
+rhai = "0.2.0"
 ```
 
 ## Related
