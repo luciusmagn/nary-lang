@@ -402,6 +402,28 @@ impl Engine {
                 let get_fn_name = "get$".to_string() + id;
                 return self.call_fn(&get_fn_name, Some(this_ptr), None, None, None, None, None);
             }
+            Expr::Index(ref id, ref idx_raw) => {
+                let idx = try!(self.eval_expr(scope, idx_raw));
+
+                let get_fn_name = "get$".to_string() + id;
+                
+                if let Ok(mut val) = self.call_fn(&get_fn_name, Some(this_ptr), None, None, None, None, None) {
+                    if let Ok(i) = idx.downcast::<i32>() {
+                        if let Some(arr_typed) = (*val).downcast_mut() as Option<&mut Vec<Box<Any>>> {
+                            return self.call_fn("clone", Some(&mut arr_typed[*i as usize]), None, None, None, None, None);
+                        }
+                        else {
+                            return Err(EvalAltResult::ErrorIndexMismatch);
+                        }
+                    }
+                    else {
+                        return Err(EvalAltResult::ErrorIndexMismatch);
+                    }
+                }
+                else {
+                    return Err(EvalAltResult::ErrorIndexMismatch);
+                }
+            }
             Expr::Dot(ref inner_lhs, ref inner_rhs) => {
                 match **inner_lhs {
                     Expr::Identifier(ref id) => {
@@ -452,6 +474,47 @@ impl Engine {
                 }
 
                 return Err(EvalAltResult::ErrorVariableNotFound(id.clone()));
+            }
+            Expr::Index(ref id, ref idx_raw) => {
+                let idx_boxed = try!(self.eval_expr(scope, idx_raw));
+                let idx = if let Ok(i) = idx_boxed.downcast::<i32>() { i } else { return Err(EvalAltResult::ErrorIndexMismatch); };
+                
+                let mut target : Option<Box<Any>> = None;
+
+                for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev() {
+                    if *id == *name {
+                        if let Some(arr_typed) = (*val).downcast_mut() as Option<&mut Vec<Box<Any>>> {
+                            let result = self.call_fn("clone", Some(&mut arr_typed[*idx as usize]), 
+                                None, None, None, None, None);
+
+                            if let Ok(clone) = result {
+                                target = Some(clone);
+                                break;
+                            }
+                            else {
+                                return result;
+                            }
+                        }
+                        else {
+                            return Err(EvalAltResult::ErrorIndexMismatch);
+                        }
+                    }
+                }
+
+                if let Some(mut t) = target {
+                    let result = self.get_dot_val_helper(scope, &mut t, dot_rhs);
+                    for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev() {
+                        if *id == *name {
+                            if let Some(arr_typed) = (*val).downcast_mut() as Option<&mut Vec<Box<Any>>> {
+                                arr_typed[*idx as usize] = t;
+                                break;
+                            }
+                        }
+                    }
+                    return result;
+                }
+
+                Err(EvalAltResult::ErrorVariableNotFound(id.clone()))
             }
             _ => Err(EvalAltResult::InternalErrorMalformedDotExpression)
         }
@@ -523,6 +586,47 @@ impl Engine {
                 }
 
                 return Err(EvalAltResult::ErrorAssignmentToUnknownLHS);
+            }
+            Expr::Index(ref id, ref idx_raw) => {
+                let idx_boxed = try!(self.eval_expr(scope, idx_raw));
+                let idx = if let Ok(i) = idx_boxed.downcast::<i32>() { i } else { return Err(EvalAltResult::ErrorIndexMismatch); };
+                
+                let mut target : Option<Box<Any>> = None;
+
+                for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev() {
+                    if *id == *name {
+                        if let Some(arr_typed) = (*val).downcast_mut() as Option<&mut Vec<Box<Any>>> {
+                            let result = self.call_fn("clone", Some(&mut arr_typed[*idx as usize]), 
+                                None, None, None, None, None);
+
+                            if let Ok(clone) = result {
+                                target = Some(clone);
+                                break;
+                            }
+                            else {
+                                return result;
+                            }
+                        }
+                        else {
+                            return Err(EvalAltResult::ErrorIndexMismatch);
+                        }
+                    }
+                }
+
+                if let Some(mut t) = target {
+                    let result = self.set_dot_val_helper(&mut t, dot_rhs, source_val);
+                    for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev() {
+                        if *id == *name {
+                            if let Some(arr_typed) = (*val).downcast_mut() as Option<&mut Vec<Box<Any>>> {
+                                arr_typed[*idx as usize] = t;
+                                break;
+                            }
+                        }
+                    }
+                    return result;
+                }
+
+                Err(EvalAltResult::ErrorVariableNotFound(id.clone()))
             }
             _ => Err(EvalAltResult::InternalErrorMalformedDotExpression)
         }
@@ -1183,6 +1287,54 @@ fn test_big_get_set() {
 
     if let Ok(result) = engine.eval::<i32>("var a = new_tp(); a.child.x = 500; a.child.x") {
         assert_eq!(result, 500);
+    }
+    else {
+        assert!(false);
+    }
+}
+
+#[test]
+fn test_array_with_structs() {
+    #[derive(Clone)]
+    struct TestStruct {
+        x: i32
+    }
+
+    impl TestStruct {
+        fn update(&mut self) {
+            self.x += 1000;
+        }
+
+        fn get_x(&mut self) -> i32 {
+            self.x
+        }
+
+        fn set_x(&mut self, new_x: i32) {
+            self.x = new_x;
+        }
+
+        fn new() -> TestStruct {
+            TestStruct { x: 1 }
+        }
+    }
+
+    let mut engine = Engine::new();
+
+    engine.register_type::<TestStruct>();
+
+    engine.register_get_set("x", TestStruct::get_x, TestStruct::set_x);
+    engine.register_fn("update", TestStruct::update);
+    engine.register_fn("new_ts", TestStruct::new);
+
+    if let Ok(result) = engine.eval::<i32>("var a = [new_ts()]; a[0].x") {
+        assert_eq!(result, 1);
+    }
+    else {
+        assert!(false);
+    }
+
+    if let Ok(result) = engine.eval::<i32>("var a = [new_ts()]; a[0].x = 100; a[0].update(); a[0].x") {
+        assert_eq!(result, 1100);
     }
     else {
         assert!(false);
