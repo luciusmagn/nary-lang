@@ -12,7 +12,7 @@ Rhai's current feature set:
 * No additional dependencies
 * No unsafe code
 
-**Note:** Currently, it's version 0.1.0, so the language and APIs may change before they stabilize.*
+**Note:** Currently, it's version 0.2.0, so the language and APIs may change before they stabilize.*
 
 ## Installation
 
@@ -86,6 +86,16 @@ fn add(x, y) {
 
 print(add(2, 3))
 ```
+## Arrays 
+
+You can create arrays of values, and then access them with numeric indices.
+
+```Rust
+var y = [1, 2, 3]; 
+y[1] = 5; 
+
+print(y[1]);
+```
 
 ## Members and methods
 
@@ -104,7 +114,7 @@ use rhai::Engine;
 fn main() {
     let mut engine = Engine::new();
 
-    if let Ok(result) = engine.eval("40 + 2".to_string()).unwrap().downcast::<i32>() {
+    if let Ok(result) = engine.eval::<i32>("40 + 2") {
         println!("Answer: {}", *result);  // prints 42
     }
 }
@@ -124,9 +134,9 @@ fn add(x: i32, y: i32) -> i32 {
 fn main() {
     let mut engine = Engine::new();
 
-    &(add as fn(x: i32, y: i32)->i32).register(&mut engine, "add");
+    engine.register_fn("add", add);
  
-    if let Ok(result) = engine.eval("add(40, 2)".to_string()).unwrap().downcast::<i32>() {
+    if let Ok(result) = engine.eval::<i32>("add(40, 2)") {
        println!("Answer: {}", *result);  // prints 42
     }
 }
@@ -149,9 +159,9 @@ fn showit<T: Display>(x: &mut T) -> () {
 fn main() {
     let mut engine = Engine::new();
 
-    &(showit as fn(x: &mut i32)->()).register(&mut engine, "print");
-    &(showit as fn(x: &mut bool)->()).register(&mut engine, "print");
-    &(showit as fn(x: &mut String)->()).register(&mut engine, "print");
+    engine.register_fn("print", showit as fn(x: &mut i32)->());
+    engine.register_fn("print", showit as fn(x: &mut bool)->());
+    engine.register_fn("print", showit as fn(x: &mut String)->());
 }
 ```
 
@@ -185,10 +195,10 @@ fn main() {
 
     engine.register_type::<TestStruct>();
 
-    &(TestStruct::update as fn(&mut TestStruct)->()).register(&mut engine, "update");
-    &(TestStruct::new as fn()->TestStruct).register(&mut engine, "new_ts");
+    engine.register_fn("update", TestStruct::update);
+    engine.register_fn("new_ts", TestStruct::new);
 
-    if let Ok(result) = engine.eval("var x = new_ts(); x.update(); x".to_string()).unwrap().downcast::<TestStruct>() {
+    if let Ok(result) = engine.eval::<TestStruct>("var x = new_ts(); x.update(); x") {
         println!("result: {}", result.x); // prints 1001
     }
 }
@@ -225,18 +235,18 @@ To use methods and functions with the engine, we need to register them.  There a
 *Note: the engine follows the convention that methods use a &mut first parameter so that invoking methods can update the value in memory.*
 
 ```Rust
-&(TestStruct::update as fn(&mut TestStruct)->()).register(&mut engine, "update");
-&(TestStruct::new as fn()->TestStruct).register(&mut engine, "new_ts");
+engine.register_fn("update", TestStruct::update);
+engine.register_fn("new_ts", TestStruct::new);
 ```
 
 Finally, we call our script.  The script can see the function and method we registered earlier.  We need to get the result back out from script land just as before, this time casting to our custom struct type.
 ```Rust
-if let Ok(result) = engine.eval("var x = new_ts(); x.update(); x".to_string()).unwrap().downcast::<TestStruct>() {
+if let Ok(result) = engine.eval::<TestStruct>("var x = new_ts(); x.update(); x") {
     println!("result: {}", result.x); // prints 1001
 }
 ```
 
-# Example: Working with custom types and members
+# Example: Working with getters and setters
 
 Similarly, you can work with members of your custom types.  This works by registering a 'get' or a 'set' function for working with your struct.  
 
@@ -266,11 +276,10 @@ let mut engine = Engine::new();
 
 engine.register_type::<TestStruct>();
 
-&(TestStruct::get_x as fn(&mut TestStruct)->i32).register(&mut engine, "get$x");
-&(TestStruct::set_x as fn(&mut TestStruct, i32)->()).register(&mut engine, "set$x");
-&(TestStruct::new as fn()->TestStruct).register(&mut engine, "new_ts");
+engine.register_get_set("x", TestStruct::get_x, TestStruct::set_x);
+engine.register_fn("new_ts", TestStruct::new);
 
-if let Ok(result) = engine.eval("var a = new_ts(); a.x = 500; a.x".to_string()).unwrap().downcast::<i32>() {
+if let Ok(result) = engine.eval::<i32>("var a = new_ts(); a.x = 500; a.x") {
     println!("result: {}", result);
 }
 ```
@@ -289,9 +298,9 @@ fn main() {
     let mut engine = Engine::new();
     let mut scope: Scope = Vec::new();
 
-    if let Ok(_) = engine.eval_with_scope(&mut scope, "var x = 4 + 5".to_string()) { } else { assert!(false); }    
+    if let Ok(_) = engine.eval_with_scope::<()>(&mut scope, "var x = 4 + 5") { } else { assert!(false); }    
 
-    if let Ok(result) = engine.eval_with_scope(&mut scope, "x".to_string()).unwrap().downcast::<i32>() {
+    if let Ok(result) = engine.eval_with_scope::<i32>(&mut scope, "x") {
        println!("result: {}", result);
     }
 }
