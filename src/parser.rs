@@ -41,7 +41,9 @@ pub enum ParseError {
     MissingRParen,
     MissingLCurly,
     MissingRCurly,
+    MissingRSquare,
     MalformedCallExpr,
+    MalformedIndexExpr,
     VarExpectsIdentifier,
     FnMissingName,
     FnMissingParams
@@ -56,7 +58,9 @@ impl Error for ParseError {
             ParseError::MissingRParen => "Expected ')'",
             ParseError::MissingLCurly => "Expected '{'",
             ParseError::MissingRCurly => "Expected '}'",
+            ParseError::MissingRSquare => "Expected ']'",
             ParseError::MalformedCallExpr => "Call contains bad expression",
+            ParseError::MalformedIndexExpr => "Indexing expression missing correct index",
             ParseError::VarExpectsIdentifier => "'var' expects the name of a variable",
             ParseError::FnMissingName => "Function declaration is missing name",
             ParseError::FnMissingParams => "Function declaration is missing parameters"
@@ -87,7 +91,7 @@ pub enum Stmt { If(Box<Expr>, Box<Stmt>), IfElse(Box<Expr>, Box<Stmt>, Box<Stmt>
 
 #[derive(Debug, Clone)]
 pub enum Expr { IntConst(i32), Identifier(String), StringConst(String), FnCall(String, Box<Vec<Expr>>), 
-    Assignment(Box<Expr>, Box<Expr>), Dot(Box<Expr>, Box<Expr>), True, False }
+    Assignment(Box<Expr>, Box<Expr>), Dot(Box<Expr>, Box<Expr>), Index(String, Box<Expr>), Array(Box<Vec<Expr>>), True, False }
 
 #[derive(Debug)]
 pub enum Token { IntConst(i32), Identifier(String), StringConst(String), LCurly, RCurly, LParen, RParen, LSquare, RSquare,
@@ -355,12 +359,7 @@ fn parse_paren_expr<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<Expr,
     }
 }
 
-fn parse_ident_expr<'a>(id: String, input: &mut Peekable<TokenIterator<'a>>) -> Result<Expr, ParseError> {    
-    match input.peek() {
-        Some(&Token::LParen) => {input.next();},
-        _ => return Ok(Expr::Identifier(id))
-    }
-
+fn parse_call_expr<'a>(id: String, input: &mut Peekable<TokenIterator<'a>>) -> Result<Expr, ParseError> {    
     let mut args = Vec::new();
 
     match input.peek() {
@@ -392,6 +391,59 @@ fn parse_ident_expr<'a>(id: String, input: &mut Peekable<TokenIterator<'a>>) -> 
     }
 }
 
+fn parse_index_expr<'a>(id: String, input: &mut Peekable<TokenIterator<'a>>) -> Result<Expr, ParseError> {    
+    if let Ok(idx) = parse_expr(input) {
+        match input.peek() {
+            Some(&Token::RSquare) => {
+                input.next();
+                return Ok(Expr::Index(id, Box::new(idx)))
+            },
+            _ => return Err(ParseError::MalformedIndexExpr)
+        }
+    }
+    else {
+        return Err(ParseError::MalformedIndexExpr);
+    }
+}
+
+fn parse_ident_expr<'a>(id: String, input: &mut Peekable<TokenIterator<'a>>) -> Result<Expr, ParseError> {    
+    match input.peek() {
+        Some(&Token::LParen) => {input.next(); parse_call_expr(id, input)},
+        Some(&Token::LSquare) => {input.next(); parse_index_expr(id, input)},
+        _ => return Ok(Expr::Identifier(id))
+    }
+}
+
+fn parse_array_expr<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<Expr, ParseError> {
+    let mut arr = Vec::new();
+
+    let skip_contents = match input.peek() {
+        Some(& Token::RSquare) => true,
+        _ => false
+    };
+
+    if !skip_contents {
+        while let Some(_) = input.peek() {
+            arr.push(try!(parse_expr(input)));
+            match input.peek() {
+                Some(& Token::Comma) => {input.next();},            
+                _ => ()
+            }
+
+            match input.peek() {
+                Some(& Token::RSquare) => break,
+                _ => ()
+            }
+        }        
+    }
+
+    match input.peek() {
+        Some(& Token::RSquare) => {input.next(); Ok(Expr::Array(Box::new(arr)))},
+        _ => Err(ParseError::MissingRSquare)
+    }
+
+}
+
 fn parse_primary<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<Expr, ParseError> {
     if let Some(token) = input.next() {
         match token {
@@ -399,6 +451,7 @@ fn parse_primary<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<Expr, Pa
             Token::StringConst(ref s) => {Ok(Expr::StringConst(s.clone()))},
             Token::Identifier(ref s) => {parse_ident_expr(s.clone(), input)},
             Token::LParen => {parse_paren_expr(input)},
+            Token::LSquare => {parse_array_expr(input)},
             Token::True => {Ok(Expr::True)},
             Token::False => {Ok(Expr::False)},
             Token::LexErr(le) => {println!("Error: {}", le); Err(ParseError::BadInput)}

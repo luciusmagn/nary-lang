@@ -15,6 +15,7 @@ pub enum EvalAltResult {
     ErrorFunctionNotFound,
     ErrorFunctionArgMismatch,
     ErrorFunctionCallNotSupported,
+    ErrorIndexMismatch,
     ErrorIfGuardMismatch,
     ErrorVariableNotFound(String),
     ErrorFunctionArityNotSupported,
@@ -26,12 +27,14 @@ pub enum EvalAltResult {
     Return(Box<Any>)
 }
 
+
 impl Error for EvalAltResult {
     fn description(&self) -> &str {
         match *self {
             EvalAltResult::ErrorFunctionNotFound => "Function not found",
             EvalAltResult::ErrorFunctionArgMismatch => "Function argument types do not match",
             EvalAltResult::ErrorFunctionCallNotSupported => "Function call with > 2 argument not supported",
+            EvalAltResult::ErrorIndexMismatch => "Index does not match array",
             EvalAltResult::ErrorIfGuardMismatch => "If guards expect boolean expression",
             EvalAltResult::ErrorVariableNotFound(_) => "Variable not found",
             EvalAltResult::ErrorFunctionArityNotSupported => "Functions of more than 3 parameters are not yet supported",
@@ -537,10 +540,32 @@ impl Engine {
                 }
                 Err(EvalAltResult::ErrorVariableNotFound(id.clone()))
             }
+            Expr::Index(ref id, ref idx_raw) => {
+                let idx = try!(self.eval_expr(scope, idx_raw));
+
+                for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev() {
+                    if *id == *name {
+                        if let Ok(i) = idx.downcast::<i32>() {
+                            if let Some(arr_typed) = (*val).downcast_mut() as Option<&mut Vec<Box<Any>>> {
+                                return self.call_fn("clone", Some(&mut arr_typed[*i as usize]), None, None, None, None, None);
+                            }
+                            else {
+                                return Err(EvalAltResult::ErrorIndexMismatch);
+                            }
+                        }
+                        else {
+                            return Err(EvalAltResult::ErrorIndexMismatch);
+                        }
+                    }
+                }
+
+                Err(EvalAltResult::ErrorVariableNotFound(id.clone()))
+            }
             Expr::Assignment(ref id, ref rhs) => {
+                let rhs_val = try!(self.eval_expr(scope, rhs));
+
                 match **id {
                     Expr::Identifier(ref n) => {
-                        let rhs_val = try!(self.eval_expr(scope, rhs));
                         for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev() {
                             if *n == *name {
 
@@ -551,9 +576,29 @@ impl Engine {
                         }
                         Err(EvalAltResult::ErrorVariableNotFound(n.clone()))
                     }
-                    Expr::Dot(ref dot_lhs, ref dot_rhs) => {
-                        let rhs_val = try!(self.eval_expr(scope, rhs));
+                    Expr::Index(ref id, ref idx_raw) => {
+                        let idx = try!(self.eval_expr(scope, idx_raw));
 
+                        for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev() {
+                            if *id == *name {
+                                if let Ok(i) = idx.downcast::<i32>() {
+                                    if let Some(arr_typed) = (*val).downcast_mut() as Option<&mut Vec<Box<Any>>> {
+                                        arr_typed[*i as usize] = rhs_val;
+                                        return Ok(Box::new(()));
+                                    }
+                                    else {
+                                        return Err(EvalAltResult::ErrorIndexMismatch);
+                                    }
+                                }
+                                else {
+                                    return Err(EvalAltResult::ErrorIndexMismatch);
+                                }
+                            }
+                        }
+
+                        Err(EvalAltResult::ErrorVariableNotFound(id.clone()))                        
+                    }
+                    Expr::Dot(ref dot_lhs, ref dot_rhs) => {
                         self.set_dot_val(scope, dot_lhs, dot_rhs, rhs_val)
                     }
                     _ => Err(EvalAltResult::ErrorAssignmentToUnknownLHS)
@@ -561,6 +606,16 @@ impl Engine {
             }
             Expr::Dot(ref lhs, ref rhs) => {
                 self.get_dot_val(scope, lhs, rhs)
+            }
+            Expr::Array(ref contents) => {
+                let mut arr = Vec::new();
+
+                for item in (*contents).iter() {
+                    let arg = try!(self.eval_expr(scope, item));
+                    arr.push(arg);
+                }
+
+                Ok(Box::new(arr))
             }
             Expr::FnCall(ref fn_name, ref args) => {
                 if args.len() == 0 {
@@ -838,6 +893,12 @@ impl Engine {
 
         reg_op!(engine, "||", or, bool);
         reg_op!(engine, "&&", and, bool);
+
+        //engine.register_fn("[]", idx);
+        //FIXME?  Registering array lookups are a special case because we want to return boxes directly
+        //let ent = engine.fns.entry("[]".to_string()).or_insert(Vec::new());
+        //(*ent).push(FnType::ExternalFn2(Box::new(idx)));
+
     }
 
     pub fn new() -> Engine {
@@ -1170,3 +1231,24 @@ fn test_string() {
         assert!(false);
     }
 }
+
+#[test]
+fn test_vec() {
+    let mut engine = Engine::new();
+
+    if let Ok(result) = engine.eval::<i32>("var x = [1, 2, 3]; x[1]") {
+        assert_eq!(result, 2);
+    }
+    else {
+        assert!(false);
+    }
+
+    if let Ok(result) = engine.eval::<i32>("var y = [1, 2, 3]; y[1] = 5; y[1]") {
+        assert_eq!(result, 5);
+    }
+    else {
+        assert!(false);
+    }
+}
+
+

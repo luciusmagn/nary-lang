@@ -8,8 +8,8 @@ pub trait FnRegister<A, RetVal, Args> {
 }
 
 impl<'a, A, T, U, V, W, X, Y, Z> FnRegister<A, Z, (&'a mut T, U, V, W, X, Y)> for Engine
-    where A: 'static+Fn(&mut T, U, V, W, X, Y) -> Z, T: Clone+Any, U: Clone+Any, V: Clone+Any, W: Clone+Any, 
-        X: Clone+Any, Y: Clone+Any, Z: Clone+Any
+    where A: 'static+Fn(&mut T, U, V, W, X, Y) -> Z, T: Any, U: Clone+Any, V: Clone+Any, W: Clone+Any, 
+        X: Clone+Any, Y: Clone+Any, Z: Any
 {
     fn register_fn(&mut self, name: &str, fun: A) {
         let wrapped : Box<Fn(&mut Box<Any>, &mut Box<Any>, &mut Box<Any>, &mut Box<Any>, &mut Box<Any>, 
@@ -41,7 +41,7 @@ impl<'a, A, T, U, V, W, X, Y, Z> FnRegister<A, Z, (&'a mut T, U, V, W, X, Y)> fo
 
 impl<'a, A, T, U, V, W, X, Y, Z> FnRegister<A, Z, (&'a T, U, V, W, X, Y)> for Engine
     where A: 'static+Fn(T, U, V, W, X, Y) -> Z, T: Clone+Any, U: Clone+Any, V: Clone+Any, W: Clone+Any, 
-        X: Clone+Any, Y: Clone+Any, Z: Clone+Any
+        X: Clone+Any, Y: Clone+Any, Z: Any
 {
     fn register_fn(&mut self, name: &str, fun: A) {
         let wrapped : Box<Fn(&mut Box<Any>, &mut Box<Any>, &mut Box<Any>, &mut Box<Any>, &mut Box<Any>, 
@@ -72,7 +72,7 @@ impl<'a, A, T, U, V, W, X, Y, Z> FnRegister<A, Z, (&'a T, U, V, W, X, Y)> for En
 }
 
 impl<'a, A, T, U, V, W, X, Y> FnRegister<A, Y, (&'a mut T, U, V, W, X)> for Engine
-    where A: 'static+Fn(&mut T, U, V, W, X) -> Y, T: Clone+Any, U: Clone+Any, V: Clone+Any, W: Clone+Any, X: Clone+Any, Y: Clone+Any
+    where A: 'static+Fn(&mut T, U, V, W, X) -> Y, T: Any, U: Clone+Any, V: Clone+Any, W: Clone+Any, X: Clone+Any, Y: Any
 {
     fn register_fn(&mut self, name: &str, fun: A) {
         let wrapped : Box<Fn(&mut Box<Any>, &mut Box<Any>, &mut Box<Any>, &mut Box<Any>, &mut Box<Any>)->Result<Box<Any>, EvalAltResult>> = 
@@ -100,7 +100,7 @@ impl<'a, A, T, U, V, W, X, Y> FnRegister<A, Y, (&'a mut T, U, V, W, X)> for Engi
 }
 
 impl<'a, A, T, U, V, W, X, Y> FnRegister<A, Y, (&'a T, U, V, W, X)> for Engine
-    where A: 'static+Fn(T, U, V, W, X) -> Y, T: Clone+Any, U: Clone+Any, V: Clone+Any, W: Clone+Any, X: Clone+Any, Y: Clone+Any
+    where A: 'static+Fn(T, U, V, W, X) -> Y, T: Clone+Any, U: Clone+Any, V: Clone+Any, W: Clone+Any, X: Clone+Any, Y: Any
 {
     fn register_fn(&mut self, name: &str, fun: A) {
         let wrapped : Box<Fn(&mut Box<Any>, &mut Box<Any>, &mut Box<Any>, &mut Box<Any>, &mut Box<Any>)->Result<Box<Any>, EvalAltResult>> = 
@@ -128,7 +128,7 @@ impl<'a, A, T, U, V, W, X, Y> FnRegister<A, Y, (&'a T, U, V, W, X)> for Engine
 }
 
 impl<'a, A, T, U, V, W, X> FnRegister<A, X, (&'a mut T, U, V, W)> for Engine
-    where A: 'static+Fn(&mut T, U, V, W) -> X, T: Clone+Any, U: Clone+Any, V: Clone+Any, W: Clone+Any, X: Clone+Any
+    where A: 'static+Fn(&mut T, U, V, W) -> X, T: Any, U: Clone+Any, V: Clone+Any, W: Clone+Any, X: Any
 {
     fn register_fn(&mut self, name: &str, fun: A) {
         let wrapped : Box<Fn(&mut Box<Any>, &mut Box<Any>, &mut Box<Any>, &mut Box<Any>)->Result<Box<Any>, EvalAltResult>> = 
@@ -152,7 +152,7 @@ impl<'a, A, T, U, V, W, X> FnRegister<A, X, (&'a mut T, U, V, W)> for Engine
 }
 
 impl<'a, A, T, U, V, W, X> FnRegister<A, X, (&'a T, U, V, W)> for Engine
-    where A: 'static+Fn(T, U, V, W) -> X, T: Clone+Any, U: Clone+Any, V: Clone+Any, W: Clone+Any, X: Clone+Any
+    where A: 'static+Fn(T, U, V, W) -> X, T: Clone+Any, U: Clone+Any, V: Clone+Any, W: Clone+Any, X: Any
 {
     fn register_fn(&mut self, name: &str, fun: A) {
         let wrapped : Box<Fn(&mut Box<Any>, &mut Box<Any>, &mut Box<Any>, &mut Box<Any>)->Result<Box<Any>, EvalAltResult>> = 
@@ -176,7 +176,7 @@ impl<'a, A, T, U, V, W, X> FnRegister<A, X, (&'a T, U, V, W)> for Engine
 }
 
 impl<'a, A, T, U, V, W> FnRegister<A, W, (&'a mut T, U, V)> for Engine
-    where A: 'static+Fn(&mut T, U, V) -> W, T: Clone+Any, U: Clone+Any, V: Clone+Any, W: Clone+Any
+    where A: 'static+Fn(&mut T, U, V) -> W, T: Any, U: Clone+Any, V: Clone+Any, W: Any
 {
     fn register_fn(&mut self, name: &str, fun: A) {
         let wrapped : Box<Fn(&mut Box<Any>, &mut Box<Any>, &mut Box<Any>)->Result<Box<Any>, EvalAltResult>> = 
@@ -199,7 +199,7 @@ impl<'a, A, T, U, V, W> FnRegister<A, W, (&'a mut T, U, V)> for Engine
 }
 
 impl<'a, A, T, U, V, W> FnRegister<A, W, (&'a T, U, V)> for Engine
-    where A: 'static+Fn(T, U, V) -> W, T: Clone+Any, U: Clone+Any, V: Clone+Any, W: Clone+Any
+    where A: 'static+Fn(T, U, V) -> W, T: Clone+Any, U: Clone+Any, V: Clone+Any, W: Any
 {
     fn register_fn(&mut self, name: &str, fun: A) {
         let wrapped : Box<Fn(&mut Box<Any>, &mut Box<Any>, &mut Box<Any>)->Result<Box<Any>, EvalAltResult>> = 
@@ -222,7 +222,7 @@ impl<'a, A, T, U, V, W> FnRegister<A, W, (&'a T, U, V)> for Engine
 }
 
 impl<'a, A, T, U, V> FnRegister<A, V, (&'a mut T, U)> for Engine
-    where A: 'static+Fn(&mut T, U) -> V, T: Clone+Any, U: Clone+Any, V: Clone+Any
+    where A: 'static+Fn(&mut T, U) -> V, T: Any, U: Clone+Any, V: Any
 {
     fn register_fn(&mut self, name: &str, fun: A) {
         let wrapped : Box<Fn(&mut Box<Any>, &mut Box<Any>)->Result<Box<Any>, EvalAltResult>> = 
@@ -244,7 +244,7 @@ impl<'a, A, T, U, V> FnRegister<A, V, (&'a mut T, U)> for Engine
 }
 
 impl<'a, A, T, U, V> FnRegister<A, V, (&'a T, U)> for Engine
-    where A: 'static+Fn(T, U) -> V, T: Clone+Any, U: Clone+Any, V: Clone+Any
+    where A: 'static+Fn(T, U) -> V, T: Clone+Any, U: Clone+Any, V: Any
 {
     fn register_fn(&mut self, name: &str, fun: A) {
         let wrapped : Box<Fn(&mut Box<Any>, &mut Box<Any>)->Result<Box<Any>, EvalAltResult>> = 
@@ -266,7 +266,7 @@ impl<'a, A, T, U, V> FnRegister<A, V, (&'a T, U)> for Engine
 }
 
 impl<'a, A, T, U> FnRegister<A, U, (&'a mut T)> for Engine
-    where A: 'static+Fn(&mut T) -> U, T: Clone+Any, U: Clone+Any 
+    where A: 'static+Fn(&mut T) -> U, T: Any, U: Any 
 {
     fn register_fn(&mut self, name: &str, fun: A) {
         let wrapped : Box<Fn(&mut Box<Any>)->Result<Box<Any>, EvalAltResult>> = 
@@ -288,7 +288,7 @@ impl<'a, A, T, U> FnRegister<A, U, (&'a mut T)> for Engine
 
 
 impl<'a, A, T, U> FnRegister<A, U, (&'a T)> for Engine
-    where A: 'static+Fn(T) -> U, T: Clone+Any, U: Clone+Any
+    where A: 'static+Fn(T) -> U, T: Clone+Any, U: Any
 {
     fn register_fn(&mut self, name: &str, fun: A) {
         let wrapped : Box<Fn(&mut Box<Any>)->Result<Box<Any>, EvalAltResult>> = 
@@ -308,7 +308,7 @@ impl<'a, A, T, U> FnRegister<A, U, (&'a T)> for Engine
 }
 
 impl<A, T> FnRegister<A, T, ()> for Engine
-    where A: 'static+Fn() -> T, T: Clone+Any
+    where A: 'static+Fn() -> T, T: Any
 {
     fn register_fn(&mut self, name: &str, fun: A) {
         let wrapped : Box<Fn()->Result<Box<Any>, EvalAltResult>> = 
