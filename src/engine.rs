@@ -1294,54 +1294,6 @@ fn test_big_get_set() {
 }
 
 #[test]
-fn test_array_with_structs() {
-    #[derive(Clone)]
-    struct TestStruct {
-        x: i32
-    }
-
-    impl TestStruct {
-        fn update(&mut self) {
-            self.x += 1000;
-        }
-
-        fn get_x(&mut self) -> i32 {
-            self.x
-        }
-
-        fn set_x(&mut self, new_x: i32) {
-            self.x = new_x;
-        }
-
-        fn new() -> TestStruct {
-            TestStruct { x: 1 }
-        }
-    }
-
-    let mut engine = Engine::new();
-
-    engine.register_type::<TestStruct>();
-
-    engine.register_get_set("x", TestStruct::get_x, TestStruct::set_x);
-    engine.register_fn("update", TestStruct::update);
-    engine.register_fn("new_ts", TestStruct::new);
-
-    if let Ok(result) = engine.eval::<i32>("var a = [new_ts()]; a[0].x") {
-        assert_eq!(result, 1);
-    }
-    else {
-        assert!(false);
-    }
-
-    if let Ok(result) = engine.eval::<i32>("var a = [new_ts()]; a[0].x = 100; a[0].update(); a[0].x") {
-        assert_eq!(result, 1100);
-    }
-    else {
-        assert!(false);
-    }
-}
-
-#[test]
 fn test_internal_fn() {
     let mut engine = Engine::new();
 
@@ -1385,7 +1337,7 @@ fn test_string() {
 }
 
 #[test]
-fn test_vec() {
+fn test_arrays() {
     let mut engine = Engine::new();
 
     if let Ok(result) = engine.eval::<i32>("var x = [1, 2, 3]; x[1]") {
@@ -1397,6 +1349,54 @@ fn test_vec() {
 
     if let Ok(result) = engine.eval::<i32>("var y = [1, 2, 3]; y[1] = 5; y[1]") {
         assert_eq!(result, 5);
+    }
+    else {
+        assert!(false);
+    }
+}
+
+#[test]
+fn test_array_with_structs() {
+    #[derive(Clone)]
+    struct TestStruct {
+        x: i32
+    }
+
+    impl TestStruct {
+        fn update(&mut self) {
+            self.x += 1000;
+        }
+
+        fn get_x(&mut self) -> i32 {
+            self.x
+        }
+
+        fn set_x(&mut self, new_x: i32) {
+            self.x = new_x;
+        }
+
+        fn new() -> TestStruct {
+            TestStruct { x: 1 }
+        }
+    }
+
+    let mut engine = Engine::new();
+
+    engine.register_type::<TestStruct>();
+
+    engine.register_get_set("x", TestStruct::get_x, TestStruct::set_x);
+    engine.register_fn("update", TestStruct::update);
+    engine.register_fn("new_ts", TestStruct::new);
+
+    if let Ok(result) = engine.eval::<i32>("var a = [new_ts()]; a[0].x") {
+        assert_eq!(result, 1);
+    }
+    else {
+        assert!(false);
+    }
+
+    if let Ok(result) = engine.eval::<i32>("var a = [new_ts()]; a[0].x = 100; a[0].update(); a[0].x") {
+        assert_eq!(result, 1100);
     }
     else {
         assert!(false);
