@@ -27,7 +27,7 @@ rhai = "0.2.0"
 
 Other cool projects to check out:
 * [ChaiScript](http://chaiscript.com/) - A strong inspiration for Rhai.  An embedded scripting language for C++ that I helped created many moons ago, now being lead by my cousin.
-* [Dyon](https://github.com/PistonDevelopers/dyon) - A scripting language for Rust that's part of the Piston game engine.
+* You can also check out the list of [scripting languages for Rust](http://libs.rs/scripting/) on [libs.rs](http://libs.rs/)
 
 ## Variables
 
