@@ -46,6 +46,21 @@ fn main() {
 }
 ```
 
+You can also evaluate a script file:
+
+```Rust
+extern crate rhai;
+use rhai::Engine;
+
+fn main() {
+    let mut engine = Engine::new();
+
+    if let Ok(result) = engine.eval_file::<i32>("hello_world.rhai") {
+        println!("Answer: {}", result);  // prints 42
+    }
+}
+```
+
 # Working with functions
 
 Rhai's scripting engine is very lightweight.  It gets its ability from the functions in your program.  To call these functions, you need to register them with the scripting engine.
