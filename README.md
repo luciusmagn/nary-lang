@@ -49,16 +49,7 @@ fn main() {
 You can also evaluate a script file:
 
 ```Rust
-extern crate rhai;
-use rhai::Engine;
-
-fn main() {
-    let mut engine = Engine::new();
-
-    if let Ok(result) = engine.eval_file::<i32>("hello_world.rhai") {
-        println!("Answer: {}", result);  // prints 42
-    }
-}
+if let Ok(result) = engine.eval_file::<i32>("hello_world.rhai") { ... }
 ```
 
 # Working with functions
