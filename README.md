@@ -233,7 +233,7 @@ fn main() {
 }
 ```
 
-# Language guide
+# Rhai Language guide
 
 ## Variables
 
