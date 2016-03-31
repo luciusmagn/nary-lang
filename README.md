@@ -29,80 +29,6 @@ Other cool projects to check out:
 * [ChaiScript](http://chaiscript.com/) - A strong inspiration for Rhai.  An embedded scripting language for C++ that I helped created many moons ago, now being lead by my cousin.
 * You can also check out the list of [scripting languages for Rust](http://libs.rs/scripting/) on [libs.rs](http://libs.rs/)
 
-## Variables
-
-```Rust
-var x = 3;
-```
-
-## Operators
-
-```Rust
-var x = (1 + 2) * (6 - 4) / 2;
-```
-
-## If
-```Rust
-if true { 
-    print("it's true!");
-}
-else {
-    print("It's false!");
-}
-```
-
-## While
-```Rust
-var x = 10;
-while x > 0 { 
-    print(x);
-    if x == 5 {
-        break;
-    }
-    x = x - 1;
-}
-```
-
-## Functions
-
-Rhai supports defining functions in script:
-
-```Rust
-fn add(x, y) {
-    return x + y;
-}
-
-print(add(2, 3))
-```
-
-Just like in Rust, you can also use an implicit return.
-
-```Rust
-fn add(x, y) {
-    x + y
-}
-
-print(add(2, 3))
-```
-## Arrays 
-
-You can create arrays of values, and then access them with numeric indices.
-
-```Rust
-var y = [1, 2, 3]; 
-y[1] = 5; 
-
-print(y[1]);
-```
-
-## Members and methods
-
-```Rust
-var a = new_ts(); 
-a.x = 500;
-a.update();
-```
-
 # Example: Hello world
 
 ```Rust
@@ -303,4 +229,81 @@ fn main() {
     }
 }
 ```
+
+# Language guide
+
+## Variables
+
+```Rust
+var x = 3;
+```
+
+## Operators
+
+```Rust
+var x = (1 + 2) * (6 - 4) / 2;
+```
+
+## If
+```Rust
+if true { 
+    print("it's true!");
+}
+else {
+    print("It's false!");
+}
+```
+
+## While
+```Rust
+var x = 10;
+while x > 0 { 
+    print(x);
+    if x == 5 {
+        break;
+    }
+    x = x - 1;
+}
+```
+
+## Functions
+
+Rhai supports defining functions in script:
+
+```Rust
+fn add(x, y) {
+    return x + y;
+}
+
+print(add(2, 3))
+```
+
+Just like in Rust, you can also use an implicit return.
+
+```Rust
+fn add(x, y) {
+    x + y
+}
+
+print(add(2, 3))
+```
+## Arrays 
+
+You can create arrays of values, and then access them with numeric indices.
+
+```Rust
+var y = [1, 2, 3]; 
+y[1] = 5; 
+
+print(y[1]);
+```
+
+## Members and methods
+
+```Rust
+var a = new_ts(); 
+a.x = 500;
+a.update();
+```
+
 
