@@ -29,7 +29,9 @@ Other cool projects to check out:
 * [ChaiScript](http://chaiscript.com/) - A strong inspiration for Rhai.  An embedded scripting language for C++ that I helped created many moons ago, now being lead by my cousin.
 * You can also check out the list of [scripting languages for Rust](http://libs.rs/scripting/) on [libs.rs](http://libs.rs/)
 
-# Example: Hello world
+# Hello world
+
+To get going with Rhai, you create an instance of the scripting engine and then run eval.  
 
 ```Rust
 extern crate rhai;
@@ -43,7 +45,8 @@ fn main() {
     }
 }
 ```
-# Example: Working with functions
+
+# Working with functions
 
 Rhai's scripting engine is very lightweight.  It gets its ability from the functions in your program.  To call these functions, you need to register them with the scripting engine.
 
@@ -66,7 +69,7 @@ fn main() {
 }
 ```
 
-# Example: Working with generic functions
+# Working with generic functions
 
 Generic functions can be used in Rhai, but you'll need to register separate instances for each concrete type:
 
@@ -91,7 +94,7 @@ fn main() {
 
 You can also see in this example how you can register multiple functions (or in this case multiple instances of the same function) to the same name in script.  This gives you a way to overload functions and call the correct one, based on the types of the arguments, from your script.
 
-# Example: Working with custom types and methods
+# Custom types and methods
 
 Here's an more complete example of working with Rust.  First the example, then we'll break it into parts:
 
@@ -170,7 +173,7 @@ if let Ok(result) = engine.eval::<TestStruct>("var x = new_ts(); x.update(); x")
 }
 ```
 
-# Example: Working with getters and setters
+# Getters and setters
 
 Similarly, you can work with members of your custom types.  This works by registering a 'get' or a 'set' function for working with your struct.  
 
@@ -208,7 +211,7 @@ if let Ok(result) = engine.eval::<i32>("var a = new_ts(); a.x = 500; a.x") {
 }
 ```
 
-# Example: Maintaining state
+# Maintaining state
 
 By default, Rhai treats each engine invocation as a fresh one, persisting only the functions that have been defined but no top-level state.  This gives each one a fairly clean starting place.  Sometimes, though, you want to continue using the same top-level state from one invocation to the next.
 
