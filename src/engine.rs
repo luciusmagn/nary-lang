@@ -22,7 +22,7 @@ pub enum EvalAltResult {
     ErrorAssignmentToUnknownLHS,
     ErrorMismatchOutputType,
     ErrorCantOpenScriptFile,
-    InternalErrorMalformedDotExpression,    
+    InternalErrorMalformedDotExpression,
     LoopBreak,
     Return(Box<Any>)
 }
@@ -330,21 +330,21 @@ impl Engine {
         self.register_fn("clone", clone_helper as fn(T)->T);
     }
 
-    pub fn register_get<T: Clone+Any, U: Clone+Any, F>(&mut self, name: &str, get_fn: F) 
+    pub fn register_get<T: Clone+Any, U: Clone+Any, F>(&mut self, name: &str, get_fn: F)
         where F : 'static+Fn(&mut T)->U {
-        
-        let get_name = "get$".to_string() + name;        
+
+        let get_name = "get$".to_string() + name;
         self.register_fn(&get_name, get_fn);
     }
 
     pub fn register_set<T: Clone+Any, U: Clone+Any, F>(&mut self, name: &str, set_fn: F)
         where F : 'static+Fn(&mut T, U)->() {
-        
-        let set_name = "set$".to_string() + name;        
+
+        let set_name = "set$".to_string() + name;
         self.register_fn(&set_name, set_fn);
     }
 
-    pub fn register_get_set<T: Clone+Any, U: Clone+Any, F, G>(&mut self, name: &str, get_fn: F, set_fn: G) 
+    pub fn register_get_set<T: Clone+Any, U: Clone+Any, F, G>(&mut self, name: &str, get_fn: F, set_fn: G)
         where F : 'static+Fn(&mut T)->U, G : 'static+Fn(&mut T, U)->() {
 
         self.register_get(name, get_fn);
@@ -353,7 +353,7 @@ impl Engine {
 
     fn get_dot_val_helper(&self, scope: &mut Scope, this_ptr: &mut Box<Any>, dot_rhs: &Expr) -> Result<Box<Any>, EvalAltResult> {
         match *dot_rhs {
-            Expr::FnCall(ref fn_name, ref args) => {                
+            Expr::FnCall(ref fn_name, ref args) => {
                 if args.len() == 0 {
                     return self.call_fn(&fn_name, Some(this_ptr), None, None, None, None, None);
                 }
@@ -381,7 +381,7 @@ impl Engine {
                     let mut arg3 = try!(self.eval_expr(scope, &args[2]));
                     let mut arg4 = try!(self.eval_expr(scope, &args[3]));
 
-                    return self.call_fn(&fn_name, Some(this_ptr), Some(&mut arg1), Some(&mut arg2), Some(&mut arg3), 
+                    return self.call_fn(&fn_name, Some(this_ptr), Some(&mut arg1), Some(&mut arg2), Some(&mut arg3),
                         Some(&mut arg4), None);
                 }
                 else if args.len() == 5 {
@@ -391,7 +391,7 @@ impl Engine {
                     let mut arg4 = try!(self.eval_expr(scope, &args[3]));
                     let mut arg5 = try!(self.eval_expr(scope, &args[4]));
 
-                    return self.call_fn(&fn_name, Some(this_ptr), Some(&mut arg1), Some(&mut arg2), Some(&mut arg3), 
+                    return self.call_fn(&fn_name, Some(this_ptr), Some(&mut arg1), Some(&mut arg2), Some(&mut arg3),
                         Some(&mut arg4), Some(&mut arg5));
                 }
                 else {
@@ -406,9 +406,9 @@ impl Engine {
                 let idx = try!(self.eval_expr(scope, idx_raw));
 
                 let get_fn_name = "get$".to_string() + id;
-                
+
                 if let Ok(mut val) = self.call_fn(&get_fn_name, Some(this_ptr), None, None, None, None, None) {
-                    if let Ok(i) = idx.downcast::<i32>() {
+                    if let Ok(i) = idx.downcast::<i64>() {
                         if let Some(arr_typed) = (*val).downcast_mut() as Option<&mut Vec<Box<Any>>> {
                             return self.call_fn("clone", Some(&mut arr_typed[*i as usize]), None, None, None, None, None);
                         }
@@ -433,7 +433,7 @@ impl Engine {
                         match result {
                             Ok(mut v) => return self.get_dot_val_helper(scope, &mut v, inner_rhs),
                             e => return e
-                        }                        
+                        }
                     }
                     _ => Err(EvalAltResult::InternalErrorMalformedDotExpression)
                 }
@@ -477,14 +477,14 @@ impl Engine {
             }
             Expr::Index(ref id, ref idx_raw) => {
                 let idx_boxed = try!(self.eval_expr(scope, idx_raw));
-                let idx = if let Ok(i) = idx_boxed.downcast::<i32>() { i } else { return Err(EvalAltResult::ErrorIndexMismatch); };
-                
+                let idx = if let Ok(i) = idx_boxed.downcast::<i64>() { i } else { return Err(EvalAltResult::ErrorIndexMismatch); };
+
                 let mut target : Option<Box<Any>> = None;
 
                 for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev() {
                     if *id == *name {
                         if let Some(arr_typed) = (*val).downcast_mut() as Option<&mut Vec<Box<Any>>> {
-                            let result = self.call_fn("clone", Some(&mut arr_typed[*idx as usize]), 
+                            let result = self.call_fn("clone", Some(&mut arr_typed[*idx as usize]),
                                 None, None, None, None, None);
 
                             if let Ok(clone) = result {
@@ -544,14 +544,14 @@ impl Engine {
                                 }
                             },
                             e => e
-                        }                        
+                        }
 
                     }
                     _ => Err(EvalAltResult::InternalErrorMalformedDotExpression)
                 }
             }
             _ => {
-                Err(EvalAltResult::InternalErrorMalformedDotExpression)                
+                Err(EvalAltResult::InternalErrorMalformedDotExpression)
             }
         }
     }
@@ -589,14 +589,14 @@ impl Engine {
             }
             Expr::Index(ref id, ref idx_raw) => {
                 let idx_boxed = try!(self.eval_expr(scope, idx_raw));
-                let idx = if let Ok(i) = idx_boxed.downcast::<i32>() { i } else { return Err(EvalAltResult::ErrorIndexMismatch); };
-                
+                let idx = if let Ok(i) = idx_boxed.downcast::<i64>() { i } else { return Err(EvalAltResult::ErrorIndexMismatch); };
+
                 let mut target : Option<Box<Any>> = None;
 
                 for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev() {
                     if *id == *name {
                         if let Some(arr_typed) = (*val).downcast_mut() as Option<&mut Vec<Box<Any>>> {
-                            let result = self.call_fn("clone", Some(&mut arr_typed[*idx as usize]), 
+                            let result = self.call_fn("clone", Some(&mut arr_typed[*idx as usize]),
                                 None, None, None, None, None);
 
                             if let Ok(clone) = result {
@@ -638,7 +638,7 @@ impl Engine {
             Expr::StringConst(ref s) => Ok(Box::new(s.clone())),
             Expr::Identifier(ref id) => {
                 for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev() {
-                    if *id == *name {                        
+                    if *id == *name {
                         return self.call_fn("clone", Some(val), None, None, None, None, None);
                     }
                 }
@@ -649,7 +649,7 @@ impl Engine {
 
                 for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev() {
                     if *id == *name {
-                        if let Ok(i) = idx.downcast::<i32>() {
+                        if let Ok(i) = idx.downcast::<i64>() {
                             if let Some(arr_typed) = (*val).downcast_mut() as Option<&mut Vec<Box<Any>>> {
                                 return self.call_fn("clone", Some(&mut arr_typed[*i as usize]), None, None, None, None, None);
                             }
@@ -685,7 +685,7 @@ impl Engine {
 
                         for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev() {
                             if *id == *name {
-                                if let Ok(i) = idx.downcast::<i32>() {
+                                if let Ok(i) = idx.downcast::<i64>() {
                                     if let Some(arr_typed) = (*val).downcast_mut() as Option<&mut Vec<Box<Any>>> {
                                         arr_typed[*i as usize] = rhs_val;
                                         return Ok(Box::new(()));
@@ -700,7 +700,7 @@ impl Engine {
                             }
                         }
 
-                        Err(EvalAltResult::ErrorVariableNotFound(id.clone()))                        
+                        Err(EvalAltResult::ErrorVariableNotFound(id.clone()))
                     }
                     Expr::Dot(ref dot_lhs, ref dot_rhs) => {
                         self.set_dot_val(scope, dot_lhs, dot_rhs, rhs_val)
@@ -758,7 +758,7 @@ impl Engine {
                     let mut arg4 = try!(self.eval_expr(scope, &args[3]));
                     let mut arg5 = try!(self.eval_expr(scope, &args[4]));
 
-                    self.call_fn(&fn_name, Some(&mut arg1), Some(&mut arg2), Some(&mut arg3), Some(&mut arg4), 
+                    self.call_fn(&fn_name, Some(&mut arg1), Some(&mut arg2), Some(&mut arg3), Some(&mut arg4),
                         Some(&mut arg5), None)
                 }
                 else if args.len() == 6 {
@@ -769,7 +769,7 @@ impl Engine {
                     let mut arg5 = try!(self.eval_expr(scope, &args[4]));
                     let mut arg6 = try!(self.eval_expr(scope, &args[5]));
 
-                    self.call_fn(&fn_name, Some(&mut arg1), Some(&mut arg2), Some(&mut arg3), Some(&mut arg4), 
+                    self.call_fn(&fn_name, Some(&mut arg1), Some(&mut arg2), Some(&mut arg3), Some(&mut arg4),
                         Some(&mut arg5), Some(&mut arg6))
                 }
                 else {
@@ -781,7 +781,7 @@ impl Engine {
             }
             Expr::False => {
                 Ok(Box::new(false))
-            }            
+            }
         }
     }
 
@@ -853,7 +853,7 @@ impl Engine {
                             }
                         }
                         Err(_) => return Err(EvalAltResult::ErrorIfGuardMismatch)
-                    }                    
+                    }
                 }
             }
             Stmt::Break => return Err(EvalAltResult::LoopBreak),
@@ -865,7 +865,7 @@ impl Engine {
             Stmt::Var(ref name, ref init) => {
                 match init {
                     & Some(ref v) => {
-                        let i = try!(self.eval_expr(scope, v)); 
+                        let i = try!(self.eval_expr(scope, v));
                         scope.push((name.clone(), i));
                     },
                     & None => {
@@ -883,17 +883,17 @@ impl Engine {
 
         if let Ok(mut f) = File::open(fname.clone()) {
             let mut contents = String::new();
-            
+
             if let Ok(_) = f.read_to_string(&mut contents) {
                 self.eval::<T>(&contents)
             }
             else {
                 Err(EvalAltResult::ErrorCantOpenScriptFile)
-            }        
+            }
         }
         else {
             Err(EvalAltResult::ErrorCantOpenScriptFile)
-        }        
+        }
     }
 
     pub fn eval<T:Any+Clone>(&mut self, input: &str) -> Result<T, EvalAltResult> {
@@ -911,7 +911,7 @@ impl Engine {
         match tree {
             Ok((ref os, ref fns)) => {
                 let mut x: Result<Box<Any>, EvalAltResult> = Ok(Box::new(()));
-                
+
                 for f in fns {
                     if f.params.len() > 6 {
                         return Err(EvalAltResult::ErrorFunctionArityNotSupported);
@@ -919,7 +919,7 @@ impl Engine {
                     let name = f.name.clone();
                     let local_f = f.clone();
                     let ent = self.fns.entry(name).or_insert(Vec::new());
-                    (*ent).push(FnType::InternalFn(local_f));                                
+                    (*ent).push(FnType::InternalFn(local_f));
                 }
 
                 for o in os {
@@ -961,7 +961,7 @@ impl Engine {
                 )*
             )
         }
-        
+
         macro_rules! reg_cmp {
             ($engine:expr, $x:expr, $op:expr, $( $y:ty ),*) => (
                 $(
@@ -1006,7 +1006,7 @@ impl Engine {
     }
 
     pub fn new() -> Engine {
-        let mut engine = Engine { 
+        let mut engine = Engine {
             fns: HashMap::new()
         };
 
@@ -1021,7 +1021,7 @@ impl Engine {
 fn test_number_literal() {
     let mut engine = Engine::new();
 
-    if let Ok(result) = engine.eval::<i32>("65") {
+    if let Ok(result) = engine.eval::<i64>("65") {
         assert_eq!(result, 65);
     }
     else {
@@ -1033,26 +1033,26 @@ fn test_number_literal() {
 fn test_ops() {
     let mut engine = Engine::new();
 
-    if let Ok(result) = engine.eval::<i32>("60 + 5") {
+    if let Ok(result) = engine.eval::<i64>("60 + 5") {
         assert_eq!(result, 65);
     }
     else {
         assert!(false);
     }
 
-    if let Ok(result) = engine.eval::<i32>("(1 + 2) * (6 - 4) / 2") {
+    if let Ok(result) = engine.eval::<i64>("(1 + 2) * (6 - 4) / 2") {
         assert_eq!(result, 3);
     }
     else {
         assert!(false);
-    }    
+    }
 }
 
 #[test]
 fn test_mismatched_op() {
     let mut engine = Engine::new();
 
-    match engine.eval::<i32>("60 + \"hello\"") {
+    match engine.eval::<i64>("60 + \"hello\"") {
         Err(EvalAltResult::ErrorFunctionArgMismatch) => (),
         _ => assert!(false)
     }
@@ -1086,7 +1086,7 @@ fn test_bool_op2() {
 fn test_op_prec() {
     let mut engine = Engine::new();
 
-    if let Ok(result) = engine.eval::<i32>("var x = 0; if x == 10 || true { x = 1} x") {
+    if let Ok(result) = engine.eval::<i64>("var x = 0; if x == 10 || true { x = 1} x") {
         assert_eq!(result, 1);
     }
     else {
@@ -1098,21 +1098,21 @@ fn test_op_prec() {
 fn test_if() {
     let mut engine = Engine::new();
 
-    if let Ok(result) = engine.eval::<i32>("if true { 55 }") {
+    if let Ok(result) = engine.eval::<i64>("if true { 55 }") {
         assert_eq!(result, 55);
     }
     else {
         assert!(false);
     }
 
-    if let Ok(result) = engine.eval::<i32>("if false { 55 } else { 44 }") {
+    if let Ok(result) = engine.eval::<i64>("if false { 55 } else { 44 }") {
         assert_eq!(result, 44);
     }
     else {
         assert!(false);
     }
 
-    if let Ok(result) = engine.eval::<i32>("if true { 55 } else { 44 }") {
+    if let Ok(result) = engine.eval::<i64>("if true { 55 } else { 44 }") {
         assert_eq!(result, 55);
     }
     else {
@@ -1124,7 +1124,7 @@ fn test_if() {
 fn test_while() {
     let mut engine = Engine::new();
 
-    if let Ok(result) = engine.eval::<i32>("var x = 0; while x < 10 { x = x + 1; if x > 5 { break } } x") {
+    if let Ok(result) = engine.eval::<i64>("var x = 0; while x < 10 { x = x + 1; if x > 5 { break } } x") {
         assert_eq!(result, 6);
     }
     else {
@@ -1137,18 +1137,18 @@ fn test_var_scope() {
     let mut engine = Engine::new();
     let mut scope: Scope = Vec::new();
 
-    if let Ok(_) = engine.eval_with_scope::<()>(&mut scope, "var x = 4 + 5") { } else { assert!(false); }    
+    if let Ok(_) = engine.eval_with_scope::<()>(&mut scope, "var x = 4 + 5") { } else { assert!(false); }
 
-    if let Ok(result) = engine.eval_with_scope::<i32>(&mut scope, "x") {
+    if let Ok(result) = engine.eval_with_scope::<i64>(&mut scope, "x") {
         assert_eq!(result, 9);
     }
     else {
         assert!(false);
-    }    
+    }
 
     if let Ok(_) = engine.eval_with_scope::<()>(&mut scope, "x = x + 1; x = x + 2;") { } else { assert!(false); }
 
-    if let Ok(result) = engine.eval_with_scope::<i32>(&mut scope, "x") {
+    if let Ok(result) = engine.eval_with_scope::<i64>(&mut scope, "x") {
         assert_eq!(result, 12);
     }
     else {
@@ -1157,7 +1157,7 @@ fn test_var_scope() {
 
     if let Ok(_) = engine.eval_with_scope::<()>(&mut scope, "{var x = 3}") { } else { assert!(false); }
 
-    if let Ok(result) = engine.eval_with_scope::<i32>(&mut scope, "x") {
+    if let Ok(result) = engine.eval_with_scope::<i64>(&mut scope, "x") {
         assert_eq!(result, 12);
     }
     else {
@@ -1169,7 +1169,7 @@ fn test_var_scope() {
 fn test_method_call() {
     #[derive(Clone)]
     struct TestStruct {
-        x: i32
+        x: i64
     }
 
     impl TestStruct {
@@ -1202,15 +1202,15 @@ fn test_method_call() {
 fn test_get_set() {
     #[derive(Clone)]
     struct TestStruct {
-        x: i32
+        x: i64
     }
 
     impl TestStruct {
-        fn get_x(&mut self) -> i32 {
+        fn get_x(&mut self) -> i64 {
             self.x
         }
 
-        fn set_x(&mut self, new_x: i32) {
+        fn set_x(&mut self, new_x: i64) {
             self.x = new_x;
         }
 
@@ -1226,7 +1226,7 @@ fn test_get_set() {
     engine.register_get_set("x", TestStruct::get_x, TestStruct::set_x);
     engine.register_fn("new_ts", TestStruct::new);
 
-    if let Ok(result) = engine.eval::<i32>("var a = new_ts(); a.x = 500; a.x") {
+    if let Ok(result) = engine.eval::<i64>("var a = new_ts(); a.x = 500; a.x") {
         assert_eq!(result, 500);
     }
     else {
@@ -1238,15 +1238,15 @@ fn test_get_set() {
 fn test_big_get_set() {
     #[derive(Clone)]
     struct TestChild {
-        x: i32
+        x: i64
     }
 
     impl TestChild {
-        fn get_x(&mut self) -> i32 {
+        fn get_x(&mut self) -> i64 {
             self.x
         }
 
-        fn set_x(&mut self, new_x: i32) {
+        fn set_x(&mut self, new_x: i64) {
             self.x = new_x;
         }
 
@@ -1285,7 +1285,7 @@ fn test_big_get_set() {
 
     engine.register_fn("new_tp", TestParent::new);
 
-    if let Ok(result) = engine.eval::<i32>("var a = new_tp(); a.child.x = 500; a.child.x") {
+    if let Ok(result) = engine.eval::<i64>("var a = new_tp(); a.child.x = 500; a.child.x") {
         assert_eq!(result, 500);
     }
     else {
@@ -1297,14 +1297,14 @@ fn test_big_get_set() {
 fn test_internal_fn() {
     let mut engine = Engine::new();
 
-    if let Ok(result) = engine.eval::<i32>("fn addme(a, b) { a+b } addme(3, 4)") {
+    if let Ok(result) = engine.eval::<i64>("fn addme(a, b) { a+b } addme(3, 4)") {
         assert_eq!(result, 7);
     }
     else {
         assert!(false);
     }
 
-    if let Ok(result) = engine.eval::<i32>("fn bob() { return 4; 5 } bob()") {
+    if let Ok(result) = engine.eval::<i64>("fn bob() { return 4; 5 } bob()") {
         assert_eq!(result, 4);
     }
     else {
@@ -1316,7 +1316,7 @@ fn test_internal_fn() {
 fn test_big_internal_fn() {
     let mut engine = Engine::new();
 
-    if let Ok(result) = engine.eval::<i32>("fn mathme(a, b, c, d, e, f) { a - b * c + d * e - f } mathme(100, 5, 2, 9, 6, 32)") {
+    if let Ok(result) = engine.eval::<i64>("fn mathme(a, b, c, d, e, f) { a - b * c + d * e - f } mathme(100, 5, 2, 9, 6, 32)") {
         assert_eq!(result, 112);
     }
     else {
@@ -1340,14 +1340,14 @@ fn test_string() {
 fn test_arrays() {
     let mut engine = Engine::new();
 
-    if let Ok(result) = engine.eval::<i32>("var x = [1, 2, 3]; x[1]") {
+    if let Ok(result) = engine.eval::<i64>("var x = [1, 2, 3]; x[1]") {
         assert_eq!(result, 2);
     }
     else {
         assert!(false);
     }
 
-    if let Ok(result) = engine.eval::<i32>("var y = [1, 2, 3]; y[1] = 5; y[1]") {
+    if let Ok(result) = engine.eval::<i64>("var y = [1, 2, 3]; y[1] = 5; y[1]") {
         assert_eq!(result, 5);
     }
     else {
@@ -1359,7 +1359,7 @@ fn test_arrays() {
 fn test_array_with_structs() {
     #[derive(Clone)]
     struct TestStruct {
-        x: i32
+        x: i64
     }
 
     impl TestStruct {
@@ -1367,11 +1367,11 @@ fn test_array_with_structs() {
             self.x += 1000;
         }
 
-        fn get_x(&mut self) -> i32 {
+        fn get_x(&mut self) -> i64 {
             self.x
         }
 
-        fn set_x(&mut self, new_x: i32) {
+        fn set_x(&mut self, new_x: i64) {
             self.x = new_x;
         }
 
@@ -1388,14 +1388,14 @@ fn test_array_with_structs() {
     engine.register_fn("update", TestStruct::update);
     engine.register_fn("new_ts", TestStruct::new);
 
-    if let Ok(result) = engine.eval::<i32>("var a = [new_ts()]; a[0].x") {
+    if let Ok(result) = engine.eval::<i64>("var a = [new_ts()]; a[0].x") {
         assert_eq!(result, 1);
     }
     else {
         assert!(false);
     }
 
-    if let Ok(result) = engine.eval::<i32>("var a = [new_ts()]; a[0].x = 100; a[0].update(); a[0].x") {
+    if let Ok(result) = engine.eval::<i64>("var a = [new_ts()]; a[0].x = 100; a[0].update(); a[0].x") {
         assert_eq!(result, 1100);
     }
     else {

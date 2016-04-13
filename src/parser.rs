@@ -90,11 +90,11 @@ pub enum Stmt { If(Box<Expr>, Box<Stmt>), IfElse(Box<Expr>, Box<Stmt>, Box<Stmt>
     Var(String, Option<Box<Expr>>), Block(Box<Vec<Stmt>>), Expr(Box<Expr>), Break, Return, ReturnWithVal(Box<Expr>) }
 
 #[derive(Debug, Clone)]
-pub enum Expr { IntConst(i32), Identifier(String), StringConst(String), FnCall(String, Box<Vec<Expr>>), 
+pub enum Expr { IntConst(i64), Identifier(String), StringConst(String), FnCall(String, Box<Vec<Expr>>), 
     Assignment(Box<Expr>, Box<Expr>), Dot(Box<Expr>, Box<Expr>), Index(String, Box<Expr>), Array(Box<Vec<Expr>>), True, False }
 
 #[derive(Debug)]
-pub enum Token { IntConst(i32), Identifier(String), StringConst(String), LCurly, RCurly, LParen, RParen, LSquare, RSquare,
+pub enum Token { IntConst(i64), Identifier(String), StringConst(String), LCurly, RCurly, LParen, RParen, LSquare, RSquare,
     Plus, Minus, Multiply, Divide, Semicolon, Colon, Comma, Period, Equals, True, False, Var, If, Else, While,
     LessThan, GreaterThan, Bang, LessThanEqual, GreaterThanEqual, EqualTo, NotEqualTo, Pipe, Or, Ampersand, And, Fn,
     Break, Return, LexErr(LexError) }
@@ -122,7 +122,7 @@ impl<'a> Iterator for TokenIterator<'a> {
 
                     let out : String = result.iter().cloned().collect();
 
-                    if let Ok(val) = out.parse::<i32>() {
+                    if let Ok(val) = out.parse::<i64>() {
                         return Some(Token::IntConst(val));
                     }
                     return Some(Token::LexErr(LexError::MalformedNumber));
