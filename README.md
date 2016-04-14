@@ -1,6 +1,6 @@
 # Rhai - embedded scripting for Rust
 
-Rhai is an embedded scripting language for Rust that gives you a safe and easy way to add scripting to your applications.  
+Rhai is an embedded scripting language for Rust that gives you a safe and easy way to add scripting to your applications.
 
 Rhai's current feature set:
 
@@ -12,7 +12,7 @@ Rhai's current feature set:
 * No additional dependencies
 * No unsafe code
 
-**Note:** Currently, it's version 0.2.0, so the language and APIs may change before they stabilize.*
+**Note:** Currently, it's version 0.3.0, so the language and APIs may change before they stabilize.*
 
 ## Installation
 
@@ -20,7 +20,7 @@ You can install Rhai using crates by adding this line to your dependences:
 
 ```
 [dependencies]
-rhai = "0.2.0"
+rhai = "0.3.0"
 ```
 
 ## Related
@@ -31,7 +31,7 @@ Other cool projects to check out:
 
 # Hello world
 
-To get going with Rhai, you create an instance of the scripting engine and then run eval.  
+To get going with Rhai, you create an instance of the scripting engine and then run eval.
 
 ```Rust
 extern crate rhai;
@@ -40,7 +40,7 @@ use rhai::Engine;
 fn main() {
     let mut engine = Engine::new();
 
-    if let Ok(result) = engine.eval::<i32>("40 + 2") {
+    if let Ok(result) = engine.eval::<i64>("40 + 2") {
         println!("Answer: {}", result);  // prints 42
     }
 }
@@ -49,7 +49,7 @@ fn main() {
 You can also evaluate a script file:
 
 ```Rust
-if let Ok(result) = engine.eval_file::<i32>("hello_world.rhai") { ... }
+if let Ok(result) = engine.eval_file::<i64>("hello_world.rhai") { ... }
 ```
 
 # Working with functions
@@ -60,7 +60,7 @@ Rhai's scripting engine is very lightweight.  It gets its ability from the funct
 extern crate rhai;
 use rhai::{Engine, FnRegister};
 
-fn add(x: i32, y: i32) -> i32 {
+fn add(x: i64, y: i64) -> i64 {
     x + y
 }
 
@@ -68,8 +68,8 @@ fn main() {
     let mut engine = Engine::new();
 
     engine.register_fn("add", add);
- 
-    if let Ok(result) = engine.eval::<i32>("add(40, 2)") {
+
+    if let Ok(result) = engine.eval::<i64>("add(40, 2)") {
        println!("Answer: {}", result);  // prints 42
     }
 }
@@ -92,7 +92,7 @@ fn showit<T: Display>(x: &mut T) -> () {
 fn main() {
     let mut engine = Engine::new();
 
-    engine.register_fn("print", showit as fn(x: &mut i32)->());
+    engine.register_fn("print", showit as fn(x: &mut i64)->());
     engine.register_fn("print", showit as fn(x: &mut bool)->());
     engine.register_fn("print", showit as fn(x: &mut String)->());
 }
@@ -110,7 +110,7 @@ use rhai::{Engine, FnRegister};
 
 #[derive(Clone)]
 struct TestStruct {
-    x: i32
+    x: i64
 }
 
 impl TestStruct {
@@ -142,7 +142,7 @@ First, for each type we use with the engine, we need to be able to Clone.  This 
 ```Rust
 #[derive(Clone)]
 struct TestStruct {
-    x: i32
+    x: i64
 }
 ```
 
@@ -181,22 +181,22 @@ if let Ok(result) = engine.eval::<TestStruct>("var x = new_ts(); x.update(); x")
 
 # Getters and setters
 
-Similarly, you can work with members of your custom types.  This works by registering a 'get' or a 'set' function for working with your struct.  
+Similarly, you can work with members of your custom types.  This works by registering a 'get' or a 'set' function for working with your struct.
 
 For example:
 
 ```Rust
 #[derive(Clone)]
 struct TestStruct {
-    x: i32
+    x: i64
 }
 
 impl TestStruct {
-    fn get_x(&mut self) -> i32 {
+    fn get_x(&mut self) -> i64 {
         self.x
     }
 
-    fn set_x(&mut self, new_x: i32) {
+    fn set_x(&mut self, new_x: i64) {
         self.x = new_x;
     }
 
@@ -212,7 +212,7 @@ engine.register_type::<TestStruct>();
 engine.register_get_set("x", TestStruct::get_x, TestStruct::set_x);
 engine.register_fn("new_ts", TestStruct::new);
 
-if let Ok(result) = engine.eval::<i32>("var a = new_ts(); a.x = 500; a.x") {
+if let Ok(result) = engine.eval::<i64>("var a = new_ts(); a.x = 500; a.x") {
     println!("result: {}", result);
 }
 ```
@@ -231,9 +231,9 @@ fn main() {
     let mut engine = Engine::new();
     let mut scope: Scope = Vec::new();
 
-    if let Ok(_) = engine.eval_with_scope::<()>(&mut scope, "var x = 4 + 5") { } else { assert!(false); }    
+    if let Ok(_) = engine.eval_with_scope::<()>(&mut scope, "var x = 4 + 5") { } else { assert!(false); }
 
-    if let Ok(result) = engine.eval_with_scope::<i32>(&mut scope, "x") {
+    if let Ok(result) = engine.eval_with_scope::<i64>(&mut scope, "x") {
        println!("result: {}", result);
     }
 }
@@ -255,7 +255,7 @@ var x = (1 + 2) * (6 - 4) / 2;
 
 ## If
 ```Rust
-if true { 
+if true {
     print("it's true!");
 }
 else {
@@ -266,7 +266,7 @@ else {
 ## While
 ```Rust
 var x = 10;
-while x > 0 { 
+while x > 0 {
     print(x);
     if x == 5 {
         break;
@@ -296,13 +296,13 @@ fn add(x, y) {
 
 print(add(2, 3))
 ```
-## Arrays 
+## Arrays
 
 You can create arrays of values, and then access them with numeric indices.
 
 ```Rust
-var y = [1, 2, 3]; 
-y[1] = 5; 
+var y = [1, 2, 3];
+y[1] = 5;
 
 print(y[1]);
 ```
@@ -310,9 +310,15 @@ print(y[1]);
 ## Members and methods
 
 ```Rust
-var a = new_ts(); 
+var a = new_ts();
 a.x = 500;
 a.update();
 ```
 
+## Strings and Chars
+
+```Rust
+var name = "Bob";
+var middle_initial = 'C';
+```
 
