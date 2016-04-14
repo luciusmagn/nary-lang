@@ -22,7 +22,7 @@ pub enum EvalAltResult {
     ErrorAssignmentToUnknownLHS,
     ErrorMismatchOutputType,
     ErrorCantOpenScriptFile,
-    InternalErrorMalformedDotExpression,    
+    InternalErrorMalformedDotExpression,
     LoopBreak,
     Return(Box<Any>)
 }
@@ -152,7 +152,7 @@ impl Engine {
                                             new_scope.push((f.params[4].clone(), r5));
                                         },
                                         _ => return Err(EvalAltResult::ErrorFunctionArgMismatch)
-                                    }                                
+                                    }
                                     match self.eval_stmt(&mut new_scope, &*f.body) {
                                         Err(EvalAltResult::Return(x)) => return Ok(x),
                                         x => return x
@@ -188,7 +188,7 @@ impl Engine {
                                             new_scope.push((f.params[3].clone(), r4));
                                         },
                                         _ => return Err(EvalAltResult::ErrorFunctionArgMismatch)
-                                    }                                
+                                    }
                                     match self.eval_stmt(&mut new_scope, &*f.body) {
                                         Err(EvalAltResult::Return(x)) => return Ok(x),
                                         x => return x
@@ -222,7 +222,7 @@ impl Engine {
                                             new_scope.push((f.params[2].clone(), r3));
                                         },
                                         _ => return Err(EvalAltResult::ErrorFunctionArgMismatch)
-                                    }                                
+                                    }
                                     match self.eval_stmt(&mut new_scope, &*f.body) {
                                         Err(EvalAltResult::Return(x)) => return Ok(x),
                                         x => return x
@@ -254,7 +254,7 @@ impl Engine {
                                             new_scope.push((f.params[1].clone(), r2));
                                         },
                                         _ => return Err(EvalAltResult::ErrorFunctionArgMismatch)
-                                    }                                
+                                    }
                                     match self.eval_stmt(&mut new_scope, &*f.body) {
                                         Err(EvalAltResult::Return(x)) => return Ok(x),
                                         x => return x
@@ -284,7 +284,7 @@ impl Engine {
                                             new_scope.push((f.params[0].clone(), r1));
                                         },
                                         _ => return Err(EvalAltResult::ErrorFunctionArgMismatch)
-                                    }                                
+                                    }
                                     match self.eval_stmt(&mut new_scope, &*f.body) {
                                         Err(EvalAltResult::Return(x)) => return Ok(x),
                                         x => return x
@@ -330,21 +330,21 @@ impl Engine {
         self.register_fn("clone", clone_helper as fn(T)->T);
     }
 
-    pub fn register_get<T: Clone+Any, U: Clone+Any, F>(&mut self, name: &str, get_fn: F) 
+    pub fn register_get<T: Clone+Any, U: Clone+Any, F>(&mut self, name: &str, get_fn: F)
         where F : 'static+Fn(&mut T)->U {
-        
-        let get_name = "get$".to_string() + name;        
+
+        let get_name = "get$".to_string() + name;
         self.register_fn(&get_name, get_fn);
     }
 
     pub fn register_set<T: Clone+Any, U: Clone+Any, F>(&mut self, name: &str, set_fn: F)
         where F : 'static+Fn(&mut T, U)->() {
-        
-        let set_name = "set$".to_string() + name;        
+
+        let set_name = "set$".to_string() + name;
         self.register_fn(&set_name, set_fn);
     }
 
-    pub fn register_get_set<T: Clone+Any, U: Clone+Any, F, G>(&mut self, name: &str, get_fn: F, set_fn: G) 
+    pub fn register_get_set<T: Clone+Any, U: Clone+Any, F, G>(&mut self, name: &str, get_fn: F, set_fn: G)
         where F : 'static+Fn(&mut T)->U, G : 'static+Fn(&mut T, U)->() {
 
         self.register_get(name, get_fn);
@@ -353,7 +353,7 @@ impl Engine {
 
     fn get_dot_val_helper(&self, scope: &mut Scope, this_ptr: &mut Box<Any>, dot_rhs: &Expr) -> Result<Box<Any>, EvalAltResult> {
         match *dot_rhs {
-            Expr::FnCall(ref fn_name, ref args) => {                
+            Expr::FnCall(ref fn_name, ref args) => {
                 if args.len() == 0 {
                     return self.call_fn(&fn_name, Some(this_ptr), None, None, None, None, None);
                 }
@@ -381,7 +381,7 @@ impl Engine {
                     let mut arg3 = try!(self.eval_expr(scope, &args[2]));
                     let mut arg4 = try!(self.eval_expr(scope, &args[3]));
 
-                    return self.call_fn(&fn_name, Some(this_ptr), Some(&mut arg1), Some(&mut arg2), Some(&mut arg3), 
+                    return self.call_fn(&fn_name, Some(this_ptr), Some(&mut arg1), Some(&mut arg2), Some(&mut arg3),
                         Some(&mut arg4), None);
                 }
                 else if args.len() == 5 {
@@ -391,7 +391,7 @@ impl Engine {
                     let mut arg4 = try!(self.eval_expr(scope, &args[3]));
                     let mut arg5 = try!(self.eval_expr(scope, &args[4]));
 
-                    return self.call_fn(&fn_name, Some(this_ptr), Some(&mut arg1), Some(&mut arg2), Some(&mut arg3), 
+                    return self.call_fn(&fn_name, Some(this_ptr), Some(&mut arg1), Some(&mut arg2), Some(&mut arg3),
                         Some(&mut arg4), Some(&mut arg5));
                 }
                 else {
@@ -406,7 +406,7 @@ impl Engine {
                 let idx = try!(self.eval_expr(scope, idx_raw));
 
                 let get_fn_name = "get$".to_string() + id;
-                
+
                 if let Ok(mut val) = self.call_fn(&get_fn_name, Some(this_ptr), None, None, None, None, None) {
                     if let Ok(i) = idx.downcast::<i32>() {
                         if let Some(arr_typed) = (*val).downcast_mut() as Option<&mut Vec<Box<Any>>> {
@@ -433,7 +433,7 @@ impl Engine {
                         match result {
                             Ok(mut v) => return self.get_dot_val_helper(scope, &mut v, inner_rhs),
                             e => return e
-                        }                        
+                        }
                     }
                     _ => Err(EvalAltResult::InternalErrorMalformedDotExpression)
                 }
@@ -478,13 +478,13 @@ impl Engine {
             Expr::Index(ref id, ref idx_raw) => {
                 let idx_boxed = try!(self.eval_expr(scope, idx_raw));
                 let idx = if let Ok(i) = idx_boxed.downcast::<i32>() { i } else { return Err(EvalAltResult::ErrorIndexMismatch); };
-                
+
                 let mut target : Option<Box<Any>> = None;
 
                 for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev() {
                     if *id == *name {
                         if let Some(arr_typed) = (*val).downcast_mut() as Option<&mut Vec<Box<Any>>> {
-                            let result = self.call_fn("clone", Some(&mut arr_typed[*idx as usize]), 
+                            let result = self.call_fn("clone", Some(&mut arr_typed[*idx as usize]),
                                 None, None, None, None, None);
 
                             if let Ok(clone) = result {
@@ -544,14 +544,14 @@ impl Engine {
                                 }
                             },
                             e => e
-                        }                        
+                        }
 
                     }
                     _ => Err(EvalAltResult::InternalErrorMalformedDotExpression)
                 }
             }
             _ => {
-                Err(EvalAltResult::InternalErrorMalformedDotExpression)                
+                Err(EvalAltResult::InternalErrorMalformedDotExpression)
             }
         }
     }
@@ -590,13 +590,13 @@ impl Engine {
             Expr::Index(ref id, ref idx_raw) => {
                 let idx_boxed = try!(self.eval_expr(scope, idx_raw));
                 let idx = if let Ok(i) = idx_boxed.downcast::<i32>() { i } else { return Err(EvalAltResult::ErrorIndexMismatch); };
-                
+
                 let mut target : Option<Box<Any>> = None;
 
                 for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev() {
                     if *id == *name {
                         if let Some(arr_typed) = (*val).downcast_mut() as Option<&mut Vec<Box<Any>>> {
-                            let result = self.call_fn("clone", Some(&mut arr_typed[*idx as usize]), 
+                            let result = self.call_fn("clone", Some(&mut arr_typed[*idx as usize]),
                                 None, None, None, None, None);
 
                             if let Ok(clone) = result {
@@ -638,7 +638,7 @@ impl Engine {
             Expr::StringConst(ref s) => Ok(Box::new(s.clone())),
             Expr::Identifier(ref id) => {
                 for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev() {
-                    if *id == *name {                        
+                    if *id == *name {
                         return self.call_fn("clone", Some(val), None, None, None, None, None);
                     }
                 }
@@ -700,7 +700,7 @@ impl Engine {
                             }
                         }
 
-                        Err(EvalAltResult::ErrorVariableNotFound(id.clone()))                        
+                        Err(EvalAltResult::ErrorVariableNotFound(id.clone()))
                     }
                     Expr::Dot(ref dot_lhs, ref dot_rhs) => {
                         self.set_dot_val(scope, dot_lhs, dot_rhs, rhs_val)
@@ -758,7 +758,7 @@ impl Engine {
                     let mut arg4 = try!(self.eval_expr(scope, &args[3]));
                     let mut arg5 = try!(self.eval_expr(scope, &args[4]));
 
-                    self.call_fn(&fn_name, Some(&mut arg1), Some(&mut arg2), Some(&mut arg3), Some(&mut arg4), 
+                    self.call_fn(&fn_name, Some(&mut arg1), Some(&mut arg2), Some(&mut arg3), Some(&mut arg4),
                         Some(&mut arg5), None)
                 }
                 else if args.len() == 6 {
@@ -769,7 +769,7 @@ impl Engine {
                     let mut arg5 = try!(self.eval_expr(scope, &args[4]));
                     let mut arg6 = try!(self.eval_expr(scope, &args[5]));
 
-                    self.call_fn(&fn_name, Some(&mut arg1), Some(&mut arg2), Some(&mut arg3), Some(&mut arg4), 
+                    self.call_fn(&fn_name, Some(&mut arg1), Some(&mut arg2), Some(&mut arg3), Some(&mut arg4),
                         Some(&mut arg5), Some(&mut arg6))
                 }
                 else {
@@ -781,7 +781,7 @@ impl Engine {
             }
             Expr::False => {
                 Ok(Box::new(false))
-            }            
+            }
         }
     }
 
@@ -853,7 +853,7 @@ impl Engine {
                             }
                         }
                         Err(_) => return Err(EvalAltResult::ErrorIfGuardMismatch)
-                    }                    
+                    }
                 }
             }
             Stmt::Break => return Err(EvalAltResult::LoopBreak),
@@ -865,7 +865,7 @@ impl Engine {
             Stmt::Var(ref name, ref init) => {
                 match init {
                     & Some(ref v) => {
-                        let i = try!(self.eval_expr(scope, v)); 
+                        let i = try!(self.eval_expr(scope, v));
                         scope.push((name.clone(), i));
                     },
                     & None => {
@@ -883,17 +883,17 @@ impl Engine {
 
         if let Ok(mut f) = File::open(fname.clone()) {
             let mut contents = String::new();
-            
+
             if let Ok(_) = f.read_to_string(&mut contents) {
                 self.eval::<T>(&contents)
             }
             else {
                 Err(EvalAltResult::ErrorCantOpenScriptFile)
-            }        
+            }
         }
         else {
             Err(EvalAltResult::ErrorCantOpenScriptFile)
-        }        
+        }
     }
 
     pub fn eval<T:Any+Clone>(&mut self, input: &str) -> Result<T, EvalAltResult> {
@@ -911,7 +911,7 @@ impl Engine {
         match tree {
             Ok((ref os, ref fns)) => {
                 let mut x: Result<Box<Any>, EvalAltResult> = Ok(Box::new(()));
-                
+
                 for f in fns {
                     if f.params.len() > 6 {
                         return Err(EvalAltResult::ErrorFunctionArityNotSupported);
@@ -919,7 +919,7 @@ impl Engine {
                     let name = f.name.clone();
                     let local_f = f.clone();
                     let ent = self.fns.entry(name).or_insert(Vec::new());
-                    (*ent).push(FnType::InternalFn(local_f));                                
+                    (*ent).push(FnType::InternalFn(local_f));
                 }
 
                 for o in os {
@@ -961,7 +961,7 @@ impl Engine {
                 )*
             )
         }
-        
+
         macro_rules! reg_cmp {
             ($engine:expr, $x:expr, $op:expr, $( $y:ty ),*) => (
                 $(
@@ -1006,7 +1006,7 @@ impl Engine {
     }
 
     pub fn new() -> Engine {
-        let mut engine = Engine { 
+        let mut engine = Engine {
             fns: HashMap::new()
         };
 
@@ -1045,7 +1045,7 @@ fn test_ops() {
     }
     else {
         assert!(false);
-    }    
+    }
 }
 
 #[test]
@@ -1137,14 +1137,14 @@ fn test_var_scope() {
     let mut engine = Engine::new();
     let mut scope: Scope = Vec::new();
 
-    if let Ok(_) = engine.eval_with_scope::<()>(&mut scope, "var x = 4 + 5") { } else { assert!(false); }    
+    if let Ok(_) = engine.eval_with_scope::<()>(&mut scope, "var x = 4 + 5") { } else { assert!(false); }
 
     if let Ok(result) = engine.eval_with_scope::<i32>(&mut scope, "x") {
         assert_eq!(result, 9);
     }
     else {
         assert!(false);
-    }    
+    }
 
     if let Ok(_) = engine.eval_with_scope::<()>(&mut scope, "x = x + 1; x = x + 2;") { } else { assert!(false); }
 

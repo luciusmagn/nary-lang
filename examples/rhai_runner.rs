@@ -23,7 +23,7 @@ fn main() {
 
         match engine.eval_file::<()>(&fname) {
             Ok(_) => (),
-            Err(e) => {println!("Error: {:?}", e)}
+            Err(e) => {println!("Error: {}", e)}
         }
     }
 }
