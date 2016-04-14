@@ -1,7 +1,7 @@
 extern crate rhai;
 use rhai::{Engine, FnRegister};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct TestStruct {
     x: i64
 }
@@ -24,7 +24,5 @@ fn main() {
     engine.register_fn("update", TestStruct::update);
     engine.register_fn("new_ts", TestStruct::new);
 
-    if let Ok(result) = engine.eval::<TestStruct>("var x = new_ts(); x.update(); x") {
-        println!("result: {}", result.x); // prints 1001
-    }
+    println!("{:?}", engine.eval::<TestStruct>("var x = [new_ts()]; x[0].update(); x[0]"));
 }

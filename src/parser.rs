@@ -9,7 +9,8 @@ use std::char;
 pub enum LexError {
     UnexpectedChar,
     MalformedEscapeSequence,
-    MalformedNumber
+    MalformedNumber,
+    MalformedChar
 }
 
 impl Error for LexError {
@@ -17,7 +18,8 @@ impl Error for LexError {
         match *self {
             LexError::UnexpectedChar => "Unexpected character in input",
             LexError::MalformedEscapeSequence => "Unexpected values in escape sequence",
-            LexError::MalformedNumber => "Unexpected characters in number"
+            LexError::MalformedNumber => "Unexpected characters in number",
+            LexError::MalformedChar => "Char constant not a single character"
         }
     }
 
@@ -31,7 +33,6 @@ impl fmt::Display for LexError {
         write!(f, "{}", self.description())
     }
 }
-
 
 #[derive(Debug)]
 pub enum ParseError {
@@ -86,17 +87,20 @@ pub struct FnDef {
 }
 
 #[derive(Debug, Clone)]
-pub enum Stmt { If(Box<Expr>, Box<Stmt>), IfElse(Box<Expr>, Box<Stmt>, Box<Stmt>), While(Box<Expr>, Box<Stmt>),
-    Var(String, Option<Box<Expr>>), Block(Box<Vec<Stmt>>), Expr(Box<Expr>), Break, Return, ReturnWithVal(Box<Expr>) }
+pub enum Stmt { If(Box<Expr>, Box<Stmt>), IfElse(Box<Expr>, Box<Stmt>, Box<Stmt>), While(Box<Expr>,
+    Box<Stmt>), Var(String, Option<Box<Expr>>), Block(Box<Vec<Stmt>>), Expr(Box<Expr>), Break,
+    Return, ReturnWithVal(Box<Expr>) }
 
 #[derive(Debug, Clone)]
-pub enum Expr { IntConst(i64), Identifier(String), StringConst(String), FnCall(String, Box<Vec<Expr>>),
-    Assignment(Box<Expr>, Box<Expr>), Dot(Box<Expr>, Box<Expr>), Index(String, Box<Expr>), Array(Box<Vec<Expr>>), True, False }
+pub enum Expr { IntConst(i64), Identifier(String), CharConst(char), StringConst(String),
+    FnCall(String, Box<Vec<Expr>>),Assignment(Box<Expr>, Box<Expr>), Dot(Box<Expr>, Box<Expr>),
+    Index(String, Box<Expr>), Array(Box<Vec<Expr>>), True, False }
 
 #[derive(Debug)]
-pub enum Token { IntConst(i64), Identifier(String), StringConst(String), LCurly, RCurly, LParen, RParen, LSquare, RSquare,
-    Plus, Minus, Multiply, Divide, Semicolon, Colon, Comma, Period, Equals, True, False, Var, If, Else, While,
-    LessThan, GreaterThan, Bang, LessThanEqual, GreaterThanEqual, EqualTo, NotEqualTo, Pipe, Or, Ampersand, And, Fn,
+pub enum Token { IntConst(i64), Identifier(String), CharConst(char), StringConst(String),
+    LCurly, RCurly, LParen, RParen, LSquare, RSquare, Plus, Minus, Multiply, Divide, Semicolon,
+    Colon, Comma, Period, Equals, True, False, Var, If, Else, While, LessThan, GreaterThan,
+    Bang, LessThanEqual, GreaterThanEqual, EqualTo, NotEqualTo, Pipe, Or, Ampersand, And, Fn,
     Break, Return, LexErr(LexError) }
 
 pub struct TokenIterator<'a> {
@@ -266,6 +270,109 @@ impl<'a> Iterator for TokenIterator<'a> {
 
                     let out : String = result.iter().cloned().collect();
                     return Some(Token::StringConst(out))
+                }
+                '\'' => {
+                    let mut result = Vec::new();
+                    let mut escape = false;
+
+                    while let Some(nxt) = self.char_stream.next() {
+                        match nxt {
+                            '\'' if !escape => break,
+                            '\\' if !escape => escape = true,
+                            '\\' if escape => {escape = false; result.push('\\'); },
+                            't' if escape => {escape = false; result.push('\t'); },
+                            'n' if escape => {escape = false; result.push('\n'); },
+                            'r' if escape => {escape = false; result.push('\r'); },
+                            'x' if escape => {
+                                escape = false;
+                                let mut out_val: u32 = 0;
+                                for _ in 0..2 {
+                                    if let Some(c) = self.char_stream.next() {
+                                        if let Some(d1) = c.to_digit(16) {
+                                            out_val *= 16;
+                                            out_val += d1;
+                                        }
+                                        else {
+                                            return Some(Token::LexErr(LexError::MalformedEscapeSequence));
+                                        }
+                                    }
+                                    else {
+                                        return Some(Token::LexErr(LexError::MalformedEscapeSequence));
+                                    }
+                                }
+
+                                if let Some(r) = char::from_u32(out_val) {
+                                    result.push(r);
+                                }
+                                else {
+                                    return Some(Token::LexErr(LexError::MalformedEscapeSequence));
+                                }
+                            }
+                            'u' if escape => {
+                                escape = false;
+                                let mut out_val: u32 = 0;
+                                for _ in 0..4 {
+                                    if let Some(c) = self.char_stream.next() {
+                                        if let Some(d1) = c.to_digit(16) {
+                                            out_val *= 16;
+                                            out_val += d1;
+                                        }
+                                        else {
+                                            return Some(Token::LexErr(LexError::MalformedEscapeSequence));
+                                        }
+                                    }
+                                    else {
+                                        return Some(Token::LexErr(LexError::MalformedEscapeSequence));
+                                    }
+                                }
+
+                                if let Some(r) = char::from_u32(out_val) {
+                                    result.push(r);
+                                }
+                                else {
+                                    return Some(Token::LexErr(LexError::MalformedEscapeSequence));
+                                }
+                            }
+                            'U' if escape => {
+                                escape = false;
+                                let mut out_val: u32 = 0;
+                                for _ in 0..8 {
+                                    if let Some(c) = self.char_stream.next() {
+                                        if let Some(d1) = c.to_digit(16) {
+                                            out_val *= 16;
+                                            out_val += d1;
+                                        }
+                                        else {
+                                            return Some(Token::LexErr(LexError::MalformedEscapeSequence));
+                                        }
+                                    }
+                                    else {
+                                        return Some(Token::LexErr(LexError::MalformedEscapeSequence));
+                                    }
+                                }
+
+                                if let Some(r) = char::from_u32(out_val) {
+                                    result.push(r);
+                                }
+                                else {
+                                    return Some(Token::LexErr(LexError::MalformedEscapeSequence));
+                                }
+                            }
+                            _ if escape => return Some(Token::LexErr(LexError::MalformedEscapeSequence)),
+                            _ => { escape = false; result.push(nxt); },
+                        }
+                    }
+
+                    if result.len() != 1 {
+                        return Some(Token::LexErr(LexError::MalformedChar));
+                    }
+
+                    if let Some(&out) = result.first() {
+                        return Some(Token::CharConst(out));
+                    }
+                    else {
+                        return Some(Token::CharConst('\0'));
+                    }
                 }
                 '{' => { return Some(Token::LCurly); },
                 '}' => { return Some(Token::RCurly); },
@@ -449,6 +556,7 @@ fn parse_primary<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<Expr, Pa
         match token {
             Token::IntConst(ref x) => {Ok(Expr::IntConst(x.clone()))},
             Token::StringConst(ref s) => {Ok(Expr::StringConst(s.clone()))},
+            Token::CharConst(ref c) => {Ok(Expr::CharConst(c.clone()))},
             Token::Identifier(ref s) => {parse_ident_expr(s.clone(), input)},
             Token::LParen => {parse_paren_expr(input)},
             Token::LSquare => {parse_array_expr(input)},
@@ -463,7 +571,9 @@ fn parse_primary<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<Expr, Pa
     }
 }
 
-fn parse_binop<'a>(input: &mut Peekable<TokenIterator<'a>>, prec: i32, lhs: Expr) -> Result<Expr, ParseError> {
+fn parse_binop<'a>(input: &mut Peekable<TokenIterator<'a>>, prec: i32, lhs: Expr)
+    -> Result<Expr, ParseError>
+{
     let mut lhs_curr = lhs;
 
     loop {
