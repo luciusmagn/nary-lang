@@ -10,7 +10,7 @@ pub enum LexError {
     UnexpectedChar,
     MalformedEscapeSequence,
     MalformedNumber,
-    MalformedChar
+    MalformedChar,
 }
 
 impl Error for LexError {
@@ -19,7 +19,7 @@ impl Error for LexError {
             LexError::UnexpectedChar => "Unexpected character in input",
             LexError::MalformedEscapeSequence => "Unexpected values in escape sequence",
             LexError::MalformedNumber => "Unexpected characters in number",
-            LexError::MalformedChar => "Char constant not a single character"
+            LexError::MalformedChar => "Char constant not a single character",
         }
     }
 
@@ -47,7 +47,7 @@ pub enum ParseError {
     MalformedIndexExpr,
     VarExpectsIdentifier,
     FnMissingName,
-    FnMissingParams
+    FnMissingParams,
 }
 
 impl Error for ParseError {
@@ -64,7 +64,7 @@ impl Error for ParseError {
             ParseError::MalformedIndexExpr => "Indexing expression missing correct index",
             ParseError::VarExpectsIdentifier => "'var' expects the name of a variable",
             ParseError::FnMissingName => "Function declaration is missing name",
-            ParseError::FnMissingParams => "Function declaration is missing parameters"
+            ParseError::FnMissingParams => "Function declaration is missing parameters",
         }
     }
 
@@ -83,28 +83,188 @@ impl fmt::Display for ParseError {
 pub struct FnDef {
     pub name: String,
     pub params: Vec<String>,
-    pub body: Box<Stmt>
+    pub body: Box<Stmt>,
 }
 
 #[derive(Debug, Clone)]
-pub enum Stmt { If(Box<Expr>, Box<Stmt>), IfElse(Box<Expr>, Box<Stmt>, Box<Stmt>), While(Box<Expr>,
-    Box<Stmt>), Var(String, Option<Box<Expr>>), Block(Box<Vec<Stmt>>), Expr(Box<Expr>), Break,
-    Return, ReturnWithVal(Box<Expr>) }
+pub enum Stmt {
+    If(Box<Expr>, Box<Stmt>),
+    IfElse(Box<Expr>, Box<Stmt>, Box<Stmt>),
+    While(Box<Expr>, Box<Stmt>),
+    Var(String, Option<Box<Expr>>),
+    Block(Box<Vec<Stmt>>),
+    Expr(Box<Expr>),
+    Break,
+    Return,
+    ReturnWithVal(Box<Expr>),
+}
 
 #[derive(Debug, Clone)]
-pub enum Expr { IntConst(i64), Identifier(String), CharConst(char), StringConst(String),
-    FnCall(String, Box<Vec<Expr>>),Assignment(Box<Expr>, Box<Expr>), Dot(Box<Expr>, Box<Expr>),
-    Index(String, Box<Expr>), Array(Box<Vec<Expr>>), True, False }
+pub enum Expr {
+    IntConst(i64),
+    Identifier(String),
+    CharConst(char),
+    StringConst(String),
+    FnCall(String, Box<Vec<Expr>>),
+    Assignment(Box<Expr>, Box<Expr>),
+    Dot(Box<Expr>, Box<Expr>),
+    Index(String, Box<Expr>),
+    Array(Box<Vec<Expr>>),
+    True,
+    False,
+}
 
 #[derive(Debug)]
-pub enum Token { IntConst(i64), Identifier(String), CharConst(char), StringConst(String),
-    LCurly, RCurly, LParen, RParen, LSquare, RSquare, Plus, Minus, Multiply, Divide, Semicolon,
-    Colon, Comma, Period, Equals, True, False, Var, If, Else, While, LessThan, GreaterThan,
-    Bang, LessThanEqual, GreaterThanEqual, EqualTo, NotEqualTo, Pipe, Or, Ampersand, And, Fn,
-    Break, Return, LexErr(LexError) }
+pub enum Token {
+    IntConst(i64),
+    Identifier(String),
+    CharConst(char),
+    StringConst(String),
+    LCurly,
+    RCurly,
+    LParen,
+    RParen,
+    LSquare,
+    RSquare,
+    Plus,
+    Minus,
+    Multiply,
+    Divide,
+    Semicolon,
+    Colon,
+    Comma,
+    Period,
+    Equals,
+    True,
+    False,
+    Var,
+    If,
+    Else,
+    While,
+    LessThan,
+    GreaterThan,
+    Bang,
+    LessThanEqual,
+    GreaterThanEqual,
+    EqualTo,
+    NotEqualTo,
+    Pipe,
+    Or,
+    Ampersand,
+    And,
+    Fn,
+    Break,
+    Return,
+    LexErr(LexError),
+}
 
 pub struct TokenIterator<'a> {
-    char_stream: Peekable<Chars<'a>>
+    char_stream: Peekable<Chars<'a>>,
+}
+
+impl<'a> TokenIterator<'a> {
+    pub fn parse_string_const(&mut self, enclosing_char: char) -> Result<String, LexError> {
+        let mut result = Vec::new();
+        let mut escape = false;
+
+        while let Some(nxt) = self.char_stream.next() {
+            match nxt {
+                '\\' if !escape => escape = true,
+                '\\' if escape => {
+                    escape = false;
+                    result.push('\\');
+                }
+                't' if escape => {
+                    escape = false;
+                    result.push('\t');
+                }
+                'n' if escape => {
+                    escape = false;
+                    result.push('\n');
+                }
+                'r' if escape => {
+                    escape = false;
+                    result.push('\r');
+                }
+                'x' if escape => {
+                    escape = false;
+                    let mut out_val: u32 = 0;
+                    for _ in 0..2 {
+                        if let Some(c) = self.char_stream.next() {
+                            if let Some(d1) = c.to_digit(16) {
+                                out_val *= 16;
+                                out_val += d1;
+                            } else {
+                                return Err(LexError::MalformedEscapeSequence);
+                            }
+                        } else {
+                            return Err(LexError::MalformedEscapeSequence);
+                        }
+                    }
+
+                    if let Some(r) = char::from_u32(out_val) {
+                        result.push(r);
+                    } else {
+                        return Err(LexError::MalformedEscapeSequence);
+                    }
+                }
+                'u' if escape => {
+                    escape = false;
+                    let mut out_val: u32 = 0;
+                    for _ in 0..4 {
+                        if let Some(c) = self.char_stream.next() {
+                            if let Some(d1) = c.to_digit(16) {
+                                out_val *= 16;
+                                out_val += d1;
+                            } else {
+                                return Err(LexError::MalformedEscapeSequence);
+                            }
+                        } else {
+                            return Err(LexError::MalformedEscapeSequence);
+                        }
+                    }
+
+                    if let Some(r) = char::from_u32(out_val) {
+                        result.push(r);
+                    } else {
+                        return Err(LexError::MalformedEscapeSequence);
+                    }
+                }
+                'U' if escape => {
+                    escape = false;
+                    let mut out_val: u32 = 0;
+                    for _ in 0..8 {
+                        if let Some(c) = self.char_stream.next() {
+                            if let Some(d1) = c.to_digit(16) {
+                                out_val *= 16;
+                                out_val += d1;
+                            } else {
+                                return Err(LexError::MalformedEscapeSequence);
+                            }
+                        } else {
+                            return Err(LexError::MalformedEscapeSequence);
+                        }
+                    }
+
+                    if let Some(r) = char::from_u32(out_val) {
+                        result.push(r);
+                    } else {
+                        return Err(LexError::MalformedEscapeSequence);
+                    }
+                }
+                x if enclosing_char == x && escape => result.push(x),
+                x if enclosing_char == x && !escape => break,
+                _ if escape => return Err(LexError::MalformedEscapeSequence),
+                _ => {
+                    escape = false;
+                    result.push(nxt);
+                }
+            }
+        }
+
+        let out: String = result.iter().cloned().collect();
+        Ok(out)
+    }
 }
 
 impl<'a> Iterator for TokenIterator<'a> {
@@ -119,18 +279,21 @@ impl<'a> Iterator for TokenIterator<'a> {
 
                     while let Some(&nxt) = self.char_stream.peek() {
                         match nxt {
-                            '0'...'9' => { result.push(nxt); self.char_stream.next(); },
-                            _ => break
+                            '0'...'9' => {
+                                result.push(nxt);
+                                self.char_stream.next();
+                            }
+                            _ => break,
                         }
                     }
 
-                    let out : String = result.iter().cloned().collect();
+                    let out: String = result.iter().cloned().collect();
 
                     if let Ok(val) = out.parse::<i64>() {
                         return Some(Token::IntConst(val));
                     }
                     return Some(Token::LexErr(LexError::MalformedNumber));
-                },
+                }
                 'A'...'Z' | 'a'...'z' | '_' => {
                     let mut result = Vec::new();
                     result.push(c);
@@ -138,294 +301,171 @@ impl<'a> Iterator for TokenIterator<'a> {
                     while let Some(&nxt) = self.char_stream.peek() {
                         match nxt {
                             '0'...'9' | 'A'...'Z' | 'a'...'z' | '_' => {
-                                result.push(nxt); self.char_stream.next(); },
-                            _ => break
+                                result.push(nxt);
+                                self.char_stream.next();
+                            }
+                            _ => break,
                         }
                     }
 
-                    let out : String = result.iter().cloned().collect();
+                    let out: String = result.iter().cloned().collect();
 
                     if out == "true" {
                         return Some(Token::True);
-                    }
-                    else if out == "false" {
+                    } else if out == "false" {
                         return Some(Token::False);
-                    }
-                    else if out == "var" {
+                    } else if out == "var" {
                         return Some(Token::Var);
-                    }
-                    else if out == "if" {
+                    } else if out == "if" {
                         return Some(Token::If);
-                    }
-                    else if out == "else" {
+                    } else if out == "else" {
                         return Some(Token::Else);
-                    }
-                    else if out == "while" {
+                    } else if out == "while" {
                         return Some(Token::While);
-                    }
-                    else if out == "break" {
+                    } else if out == "break" {
                         return Some(Token::Break);
-                    }
-                    else if out == "return" {
+                    } else if out == "return" {
                         return Some(Token::Return);
-                    }
-                    else if out == "fn" {
+                    } else if out == "fn" {
                         return Some(Token::Fn);
-                    }
-                    else {
+                    } else {
                         return Some(Token::Identifier(out));
                     }
-                },
+                }
                 '"' => {
-                    let mut result = Vec::new();
-                    let mut escape = false;
-
-                    while let Some(nxt) = self.char_stream.next() {
-                        match nxt {
-                            '"' if !escape => break,
-                            '\\' if !escape => escape = true,
-                            '\\' if escape => {escape = false; result.push('\\'); },
-                            't' if escape => {escape = false; result.push('\t'); },
-                            'n' if escape => {escape = false; result.push('\n'); },
-                            'r' if escape => {escape = false; result.push('\r'); },
-                            'x' if escape => {
-                                escape = false;
-                                let mut out_val: u32 = 0;
-                                for _ in 0..2 {
-                                    if let Some(c) = self.char_stream.next() {
-                                        if let Some(d1) = c.to_digit(16) {
-                                            out_val *= 16;
-                                            out_val += d1;
-                                        }
-                                        else {
-                                            return Some(Token::LexErr(LexError::MalformedEscapeSequence));
-                                        }
-                                    }
-                                    else {
-                                        return Some(Token::LexErr(LexError::MalformedEscapeSequence));
-                                    }
-                                }
-
-                                if let Some(r) = char::from_u32(out_val) {
-                                    result.push(r);
-                                }
-                                else {
-                                    return Some(Token::LexErr(LexError::MalformedEscapeSequence));
-                                }
-                            }
-                            'u' if escape => {
-                                escape = false;
-                                let mut out_val: u32 = 0;
-                                for _ in 0..4 {
-                                    if let Some(c) = self.char_stream.next() {
-                                        if let Some(d1) = c.to_digit(16) {
-                                            out_val *= 16;
-                                            out_val += d1;
-                                        }
-                                        else {
-                                            return Some(Token::LexErr(LexError::MalformedEscapeSequence));
-                                        }
-                                    }
-                                    else {
-                                        return Some(Token::LexErr(LexError::MalformedEscapeSequence));
-                                    }
-                                }
-
-                                if let Some(r) = char::from_u32(out_val) {
-                                    result.push(r);
-                                }
-                                else {
-                                    return Some(Token::LexErr(LexError::MalformedEscapeSequence));
-                                }
-                            }
-                            'U' if escape => {
-                                escape = false;
-                                let mut out_val: u32 = 0;
-                                for _ in 0..8 {
-                                    if let Some(c) = self.char_stream.next() {
-                                        if let Some(d1) = c.to_digit(16) {
-                                            out_val *= 16;
-                                            out_val += d1;
-                                        }
-                                        else {
-                                            return Some(Token::LexErr(LexError::MalformedEscapeSequence));
-                                        }
-                                    }
-                                    else {
-                                        return Some(Token::LexErr(LexError::MalformedEscapeSequence));
-                                    }
-                                }
-
-                                if let Some(r) = char::from_u32(out_val) {
-                                    result.push(r);
-                                }
-                                else {
-                                    return Some(Token::LexErr(LexError::MalformedEscapeSequence));
-                                }
-                            }
-                            _ if escape => return Some(Token::LexErr(LexError::MalformedEscapeSequence)),
-                            _ => { escape = false; result.push(nxt); },
-                        }
+                    match self.parse_string_const('"') {
+                        Ok(out) => return Some(Token::StringConst(out)),
+                        Err(e) => return Some(Token::LexErr(e)),
                     }
-
-                    let out : String = result.iter().cloned().collect();
-                    return Some(Token::StringConst(out))
                 }
                 '\'' => {
-                    let mut result = Vec::new();
-                    let mut escape = false;
+                    match self.parse_string_const('\'') {
+                        Ok(result) => {
+                            let mut chars = result.chars();
 
-                    while let Some(nxt) = self.char_stream.next() {
-                        match nxt {
-                            '\'' if !escape => break,
-                            '\\' if !escape => escape = true,
-                            '\\' if escape => {escape = false; result.push('\\'); },
-                            't' if escape => {escape = false; result.push('\t'); },
-                            'n' if escape => {escape = false; result.push('\n'); },
-                            'r' if escape => {escape = false; result.push('\r'); },
-                            'x' if escape => {
-                                escape = false;
-                                let mut out_val: u32 = 0;
-                                for _ in 0..2 {
-                                    if let Some(c) = self.char_stream.next() {
-                                        if let Some(d1) = c.to_digit(16) {
-                                            out_val *= 16;
-                                            out_val += d1;
-                                        }
-                                        else {
-                                            return Some(Token::LexErr(LexError::MalformedEscapeSequence));
-                                        }
-                                    }
-                                    else {
-                                        return Some(Token::LexErr(LexError::MalformedEscapeSequence));
-                                    }
+                            if let Some(out) = chars.next() {
+                                println!("result: {}", result);
+                                if chars.count() != 0 {
+                                    return Some(Token::LexErr(LexError::MalformedChar));
                                 }
-
-                                if let Some(r) = char::from_u32(out_val) {
-                                    result.push(r);
-                                }
-                                else {
-                                    return Some(Token::LexErr(LexError::MalformedEscapeSequence));
-                                }
+                                return Some(Token::CharConst(out));
+                            } else {
+                                return Some(Token::LexErr(LexError::MalformedChar));
                             }
-                            'u' if escape => {
-                                escape = false;
-                                let mut out_val: u32 = 0;
-                                for _ in 0..4 {
-                                    if let Some(c) = self.char_stream.next() {
-                                        if let Some(d1) = c.to_digit(16) {
-                                            out_val *= 16;
-                                            out_val += d1;
-                                        }
-                                        else {
-                                            return Some(Token::LexErr(LexError::MalformedEscapeSequence));
-                                        }
-                                    }
-                                    else {
-                                        return Some(Token::LexErr(LexError::MalformedEscapeSequence));
-                                    }
-                                }
-
-                                if let Some(r) = char::from_u32(out_val) {
-                                    result.push(r);
-                                }
-                                else {
-                                    return Some(Token::LexErr(LexError::MalformedEscapeSequence));
-                                }
-                            }
-                            'U' if escape => {
-                                escape = false;
-                                let mut out_val: u32 = 0;
-                                for _ in 0..8 {
-                                    if let Some(c) = self.char_stream.next() {
-                                        if let Some(d1) = c.to_digit(16) {
-                                            out_val *= 16;
-                                            out_val += d1;
-                                        }
-                                        else {
-                                            return Some(Token::LexErr(LexError::MalformedEscapeSequence));
-                                        }
-                                    }
-                                    else {
-                                        return Some(Token::LexErr(LexError::MalformedEscapeSequence));
-                                    }
-                                }
-
-                                if let Some(r) = char::from_u32(out_val) {
-                                    result.push(r);
-                                }
-                                else {
-                                    return Some(Token::LexErr(LexError::MalformedEscapeSequence));
-                                }
-                            }
-                            _ if escape => return Some(Token::LexErr(LexError::MalformedEscapeSequence)),
-                            _ => { escape = false; result.push(nxt); },
                         }
-                    }
-
-                    if result.len() != 1 {
-                        return Some(Token::LexErr(LexError::MalformedChar));
-                    }
-
-                    if let Some(&out) = result.first() {
-                        return Some(Token::CharConst(out));
-                    }
-                    else {
-                        return Some(Token::CharConst('\0'));
+                        Err(e) => return Some(Token::LexErr(e)),
                     }
                 }
-                '{' => { return Some(Token::LCurly); },
-                '}' => { return Some(Token::RCurly); },
-                '(' => { return Some(Token::LParen); },
-                ')' => { return Some(Token::RParen); },
-                '[' => { return Some(Token::LSquare); },
-                ']' => { return Some(Token::RSquare); },
-                '+' => { return Some(Token::Plus); },
-                '-' => { return Some(Token::Minus); },
-                '*' => { return Some(Token::Multiply); },
-                '/' => { return Some(Token::Divide); },
-                ';' => { return Some(Token::Semicolon); },
-                ':' => { return Some(Token::Colon); },
-                ',' => { return Some(Token::Comma); },
-                '.' => { return Some(Token::Period); },
+                '{' => {
+                    return Some(Token::LCurly);
+                }
+                '}' => {
+                    return Some(Token::RCurly);
+                }
+                '(' => {
+                    return Some(Token::LParen);
+                }
+                ')' => {
+                    return Some(Token::RParen);
+                }
+                '[' => {
+                    return Some(Token::LSquare);
+                }
+                ']' => {
+                    return Some(Token::RSquare);
+                }
+                '+' => {
+                    return Some(Token::Plus);
+                }
+                '-' => {
+                    return Some(Token::Minus);
+                }
+                '*' => {
+                    return Some(Token::Multiply);
+                }
+                '/' => {
+                    return Some(Token::Divide);
+                }
+                ';' => {
+                    return Some(Token::Semicolon);
+                }
+                ':' => {
+                    return Some(Token::Colon);
+                }
+                ',' => {
+                    return Some(Token::Comma);
+                }
+                '.' => {
+                    return Some(Token::Period);
+                }
                 '=' => {
                     match self.char_stream.peek() {
-                        Some(&'=') => {self.char_stream.next(); return Some(Token::EqualTo); },
-                        _ => { return Some(Token::Equals); }
+                        Some(&'=') => {
+                            self.char_stream.next();
+                            return Some(Token::EqualTo);
+                        }
+                        _ => {
+                            return Some(Token::Equals);
+                        }
                     }
-                },
+                }
                 '<' => {
                     match self.char_stream.peek() {
-                        Some(&'=') => {self.char_stream.next(); return Some(Token::LessThanEqual); },
-                        _ => { return Some(Token::LessThan); }
+                        Some(&'=') => {
+                            self.char_stream.next();
+                            return Some(Token::LessThanEqual);
+                        }
+                        _ => {
+                            return Some(Token::LessThan);
+                        }
                     }
                 }
                 '>' => {
                     match self.char_stream.peek() {
-                        Some(&'=') => {self.char_stream.next(); return Some(Token::GreaterThanEqual); },
-                        _ => { return Some(Token::GreaterThan); }
+                        Some(&'=') => {
+                            self.char_stream.next();
+                            return Some(Token::GreaterThanEqual);
+                        }
+                        _ => {
+                            return Some(Token::GreaterThan);
+                        }
                     }
-                },
+                }
                 '!' => {
                     match self.char_stream.peek() {
-                        Some(&'=') => {self.char_stream.next(); return Some(Token::NotEqualTo); },
-                        _ => { return Some(Token::Bang); }
+                        Some(&'=') => {
+                            self.char_stream.next();
+                            return Some(Token::NotEqualTo);
+                        }
+                        _ => {
+                            return Some(Token::Bang);
+                        }
                     }
-                },
+                }
                 '|' => {
                     match self.char_stream.peek() {
-                        Some(&'|') => {self.char_stream.next(); return Some(Token::Or); },
-                        _ => { return Some(Token::Pipe); }
+                        Some(&'|') => {
+                            self.char_stream.next();
+                            return Some(Token::Or);
+                        }
+                        _ => {
+                            return Some(Token::Pipe);
+                        }
                     }
-                },
+                }
                 '&' => {
                     match self.char_stream.peek() {
-                        Some(&'&') => {self.char_stream.next(); return Some(Token::And); },
-                        _ => { return Some(Token::Ampersand); }
+                        Some(&'&') => {
+                            self.char_stream.next();
+                            return Some(Token::And);
+                        }
+                        _ => {
+                            return Some(Token::Ampersand);
+                        }
                     }
-                },
+                }
                 ' ' | '\n' | '\r' => (),
-                _ => return Some(Token::LexErr(LexError::UnexpectedChar))
+                _ => return Some(Token::LexErr(LexError::UnexpectedChar)),
             }
         }
 
@@ -453,7 +493,7 @@ fn get_precedence(token: &Token) -> i32 {
         Token::Divide => 40,
         Token::Multiply => 40,
         Token::Period => 100,
-        _ => -1
+        _ => -1,
     }
 }
 
@@ -462,62 +502,72 @@ fn parse_paren_expr<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<Expr,
 
     match input.next() {
         Some(Token::RParen) => Ok(expr),
-        _ => Err(ParseError::MissingRParen)
+        _ => Err(ParseError::MissingRParen),
     }
 }
 
-fn parse_call_expr<'a>(id: String, input: &mut Peekable<TokenIterator<'a>>) -> Result<Expr, ParseError> {
+fn parse_call_expr<'a>(id: String,
+                       input: &mut Peekable<TokenIterator<'a>>)
+                       -> Result<Expr, ParseError> {
     let mut args = Vec::new();
 
     match input.peek() {
         Some(&Token::RParen) => {
             input.next();
-            return Ok(Expr::FnCall(id, Box::new(args)))
-        },
-        _ => ()
+            return Ok(Expr::FnCall(id, Box::new(args)));
+        }
+        _ => (),
     }
 
     loop {
         if let Ok(arg) = parse_expr(input) {
             args.push(arg);
-        }
-        else {
+        } else {
             return Err(ParseError::MalformedCallExpr);
         }
 
         match input.peek() {
             Some(&Token::RParen) => {
                 input.next();
-                return Ok(Expr::FnCall(id, Box::new(args)))
-            },
+                return Ok(Expr::FnCall(id, Box::new(args)));
+            }
             Some(&Token::Comma) => (),
-            _ => return Err(ParseError::MalformedCallExpr)
+            _ => return Err(ParseError::MalformedCallExpr),
         }
 
         input.next();
     }
 }
 
-fn parse_index_expr<'a>(id: String, input: &mut Peekable<TokenIterator<'a>>) -> Result<Expr, ParseError> {
+fn parse_index_expr<'a>(id: String,
+                        input: &mut Peekable<TokenIterator<'a>>)
+                        -> Result<Expr, ParseError> {
     if let Ok(idx) = parse_expr(input) {
         match input.peek() {
             Some(&Token::RSquare) => {
                 input.next();
-                return Ok(Expr::Index(id, Box::new(idx)))
-            },
-            _ => return Err(ParseError::MalformedIndexExpr)
+                return Ok(Expr::Index(id, Box::new(idx)));
+            }
+            _ => return Err(ParseError::MalformedIndexExpr),
         }
-    }
-    else {
+    } else {
         return Err(ParseError::MalformedIndexExpr);
     }
 }
 
-fn parse_ident_expr<'a>(id: String, input: &mut Peekable<TokenIterator<'a>>) -> Result<Expr, ParseError> {
+fn parse_ident_expr<'a>(id: String,
+                        input: &mut Peekable<TokenIterator<'a>>)
+                        -> Result<Expr, ParseError> {
     match input.peek() {
-        Some(&Token::LParen) => {input.next(); parse_call_expr(id, input)},
-        Some(&Token::LSquare) => {input.next(); parse_index_expr(id, input)},
-        _ => return Ok(Expr::Identifier(id))
+        Some(&Token::LParen) => {
+            input.next();
+            parse_call_expr(id, input)
+        }
+        Some(&Token::LSquare) => {
+            input.next();
+            parse_index_expr(id, input)
+        }
+        _ => return Ok(Expr::Identifier(id)),
     }
 }
 
@@ -525,28 +575,33 @@ fn parse_array_expr<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<Expr,
     let mut arr = Vec::new();
 
     let skip_contents = match input.peek() {
-        Some(& Token::RSquare) => true,
-        _ => false
+        Some(&Token::RSquare) => true,
+        _ => false,
     };
 
     if !skip_contents {
         while let Some(_) = input.peek() {
             arr.push(try!(parse_expr(input)));
             match input.peek() {
-                Some(& Token::Comma) => {input.next();},
-                _ => ()
+                Some(&Token::Comma) => {
+                    input.next();
+                }
+                _ => (),
             }
 
             match input.peek() {
-                Some(& Token::RSquare) => break,
-                _ => ()
+                Some(&Token::RSquare) => break,
+                _ => (),
             }
         }
     }
 
     match input.peek() {
-        Some(& Token::RSquare) => {input.next(); Ok(Expr::Array(Box::new(arr)))},
-        _ => Err(ParseError::MissingRSquare)
+        Some(&Token::RSquare) => {
+            input.next();
+            Ok(Expr::Array(Box::new(arr)))
+        }
+        _ => Err(ParseError::MissingRSquare),
     }
 
 }
@@ -554,26 +609,32 @@ fn parse_array_expr<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<Expr,
 fn parse_primary<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<Expr, ParseError> {
     if let Some(token) = input.next() {
         match token {
-            Token::IntConst(ref x) => {Ok(Expr::IntConst(x.clone()))},
-            Token::StringConst(ref s) => {Ok(Expr::StringConst(s.clone()))},
-            Token::CharConst(ref c) => {Ok(Expr::CharConst(c.clone()))},
-            Token::Identifier(ref s) => {parse_ident_expr(s.clone(), input)},
-            Token::LParen => {parse_paren_expr(input)},
-            Token::LSquare => {parse_array_expr(input)},
-            Token::True => {Ok(Expr::True)},
-            Token::False => {Ok(Expr::False)},
-            Token::LexErr(le) => {println!("Error: {}", le); Err(ParseError::BadInput)}
-            _ => {println!("Can't parse: {:?}", token); Err(ParseError::BadInput)}
+            Token::IntConst(ref x) => Ok(Expr::IntConst(x.clone())),
+            Token::StringConst(ref s) => Ok(Expr::StringConst(s.clone())),
+            Token::CharConst(ref c) => Ok(Expr::CharConst(c.clone())),
+            Token::Identifier(ref s) => parse_ident_expr(s.clone(), input),
+            Token::LParen => parse_paren_expr(input),
+            Token::LSquare => parse_array_expr(input),
+            Token::True => Ok(Expr::True),
+            Token::False => Ok(Expr::False),
+            Token::LexErr(le) => {
+                println!("Error: {}", le);
+                Err(ParseError::BadInput)
+            }
+            _ => {
+                println!("Can't parse: {:?}", token);
+                Err(ParseError::BadInput)
+            }
         }
-    }
-    else {
+    } else {
         Err(ParseError::InputPastEndOfFile)
     }
 }
 
-fn parse_binop<'a>(input: &mut Peekable<TokenIterator<'a>>, prec: i32, lhs: Expr)
-    -> Result<Expr, ParseError>
-{
+fn parse_binop<'a>(input: &mut Peekable<TokenIterator<'a>>,
+                   prec: i32,
+                   lhs: Expr)
+                   -> Result<Expr, ParseError> {
     let mut lhs_curr = lhs;
 
     loop {
@@ -597,10 +658,9 @@ fn parse_binop<'a>(input: &mut Peekable<TokenIterator<'a>>, prec: i32, lhs: Expr
             }
 
             if curr_prec < next_prec {
-                rhs = try!(parse_binop(input, curr_prec+1, rhs));
-            }
-            else if curr_prec >= 100 {
-                //Always bind right to left for precedence over 100
+                rhs = try!(parse_binop(input, curr_prec + 1, rhs));
+            } else if curr_prec >= 100 {
+                // Always bind right to left for precedence over 100
                 rhs = try!(parse_binop(input, curr_prec, rhs));
             }
 
@@ -614,12 +674,16 @@ fn parse_binop<'a>(input: &mut Peekable<TokenIterator<'a>>, prec: i32, lhs: Expr
                 Token::EqualTo => Expr::FnCall("==".to_string(), Box::new(vec![lhs_curr, rhs])),
                 Token::NotEqualTo => Expr::FnCall("!=".to_string(), Box::new(vec![lhs_curr, rhs])),
                 Token::LessThan => Expr::FnCall("<".to_string(), Box::new(vec![lhs_curr, rhs])),
-                Token::LessThanEqual => Expr::FnCall("<=".to_string(), Box::new(vec![lhs_curr, rhs])),
+                Token::LessThanEqual => {
+                    Expr::FnCall("<=".to_string(), Box::new(vec![lhs_curr, rhs]))
+                }
                 Token::GreaterThan => Expr::FnCall(">".to_string(), Box::new(vec![lhs_curr, rhs])),
-                Token::GreaterThanEqual => Expr::FnCall(">=".to_string(), Box::new(vec![lhs_curr, rhs])),
+                Token::GreaterThanEqual => {
+                    Expr::FnCall(">=".to_string(), Box::new(vec![lhs_curr, rhs]))
+                }
                 Token::Or => Expr::FnCall("||".to_string(), Box::new(vec![lhs_curr, rhs])),
                 Token::And => Expr::FnCall("&&".to_string(), Box::new(vec![lhs_curr, rhs])),
-                _ => return Err(ParseError::UnknownOperator)
+                _ => return Err(ParseError::UnknownOperator),
             };
         }
     }
@@ -638,14 +702,12 @@ fn parse_if<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<Stmt, ParseEr
     let body = try!(parse_block(input));
 
     match input.peek() {
-        Some(& Token::Else) => {
+        Some(&Token::Else) => {
             input.next();
             let else_body = try!(parse_block(input));
             Ok(Stmt::IfElse(Box::new(guard), Box::new(body), Box::new(else_body)))
         }
-        _ => {
-            Ok(Stmt::If(Box::new(guard), Box::new(body)))
-        }
+        _ => Ok(Stmt::If(Box::new(guard), Box::new(body))),
     }
 }
 
@@ -663,7 +725,7 @@ fn parse_var<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<Stmt, ParseE
 
     let name = match input.next() {
         Some(Token::Identifier(ref s)) => s.clone(),
-        _ => return Err(ParseError::VarExpectsIdentifier)
+        _ => return Err(ParseError::VarExpectsIdentifier),
     };
 
     match input.peek() {
@@ -672,14 +734,14 @@ fn parse_var<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<Stmt, ParseE
             let initializer = try!(parse_expr(input));
             Ok(Stmt::Var(name, Some(Box::new(initializer))))
         }
-        _ => Ok(Stmt::Var(name, None))
+        _ => Ok(Stmt::Var(name, None)),
     }
 }
 
 fn parse_block<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<Stmt, ParseError> {
     match input.peek() {
-        Some(& Token::LCurly) => (),
-        _ => return Err(ParseError::MissingLCurly)
+        Some(&Token::LCurly) => (),
+        _ => return Err(ParseError::MissingLCurly),
     }
 
     input.next();
@@ -687,28 +749,33 @@ fn parse_block<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<Stmt, Pars
     let mut stmts = Vec::new();
 
     let skip_body = match input.peek() {
-        Some(& Token::RCurly) => true,
-        _ => false
+        Some(&Token::RCurly) => true,
+        _ => false,
     };
 
     if !skip_body {
         while let Some(_) = input.peek() {
             stmts.push(try!(parse_stmt(input)));
             match input.peek() {
-                Some(& Token::Semicolon) => {input.next();},
-                _ => ()
+                Some(&Token::Semicolon) => {
+                    input.next();
+                }
+                _ => (),
             }
 
             match input.peek() {
-                Some(& Token::RCurly) => break,
-                _ => ()
+                Some(&Token::RCurly) => break,
+                _ => (),
             }
         }
     }
 
     match input.peek() {
-        Some(& Token::RCurly) => {input.next(); Ok(Stmt::Block(Box::new(stmts)))},
-        _ => Err(ParseError::MissingRCurly)
+        Some(&Token::RCurly) => {
+            input.next();
+            Ok(Stmt::Block(Box::new(stmts)))
+        }
+        _ => Err(ParseError::MissingRCurly),
     }
 }
 
@@ -719,19 +786,25 @@ fn parse_expr_stmt<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<Stmt, 
 
 fn parse_stmt<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<Stmt, ParseError> {
     match input.peek() {
-        Some(& Token::If) => parse_if(input),
-        Some(& Token::While) => parse_while(input),
-        Some(& Token::Break) => {input.next(); Ok(Stmt::Break)},
-        Some(& Token::Return) => {
+        Some(&Token::If) => parse_if(input),
+        Some(&Token::While) => parse_while(input),
+        Some(&Token::Break) => {
+            input.next();
+            Ok(Stmt::Break)
+        }
+        Some(&Token::Return) => {
             input.next();
             match input.peek() {
-                Some(& Token::Semicolon) => Ok(Stmt::Return),
-                _ => {let ret = try!(parse_expr(input)); Ok(Stmt::ReturnWithVal(Box::new(ret))) }
+                Some(&Token::Semicolon) => Ok(Stmt::Return),
+                _ => {
+                    let ret = try!(parse_expr(input));
+                    Ok(Stmt::ReturnWithVal(Box::new(ret)))
+                }
             }
         }
-        Some(& Token::LCurly) => parse_block(input),
-        Some(& Token::Var) => parse_var(input),
-        _ => parse_expr_stmt(input)
+        Some(&Token::LCurly) => parse_block(input),
+        Some(&Token::Var) => parse_var(input),
+        _ => parse_expr_stmt(input),
     }
 }
 
@@ -740,56 +813,71 @@ fn parse_fn<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<FnDef, ParseE
 
     let name = match input.next() {
         Some(Token::Identifier(ref s)) => s.clone(),
-        _ => return Err(ParseError::FnMissingName)
+        _ => return Err(ParseError::FnMissingName),
     };
 
     match input.peek() {
-        Some(&Token::LParen) => {input.next();},
-        _ => return Err(ParseError::FnMissingParams)
+        Some(&Token::LParen) => {
+            input.next();
+        }
+        _ => return Err(ParseError::FnMissingParams),
     }
 
     let mut params = Vec::new();
 
     let skip_params = match input.peek() {
-        Some(&Token::RParen) => { input.next(); true }
-        _ => false
+        Some(&Token::RParen) => {
+            input.next();
+            true
+        }
+        _ => false,
     };
 
     if !skip_params {
         loop {
             match input.next() {
-                Some(Token::RParen) => { break },
+                Some(Token::RParen) => break,
                 Some(Token::Comma) => (),
-                Some(Token::Identifier(ref s)) => { params.push(s.clone()); },
-                _ => return Err(ParseError::MalformedCallExpr)
+                Some(Token::Identifier(ref s)) => {
+                    params.push(s.clone());
+                }
+                _ => return Err(ParseError::MalformedCallExpr),
             }
         }
     }
 
     let body = try!(parse_block(input));
 
-    Ok(FnDef{name: name, params: params, body: Box::new(body)})
+    Ok(FnDef {
+        name: name,
+        params: params,
+        body: Box::new(body),
+    })
 }
 
-fn parse_top_level<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<(Vec<Stmt>, Vec<FnDef>), ParseError> {
+fn parse_top_level<'a>(input: &mut Peekable<TokenIterator<'a>>)
+                       -> Result<(Vec<Stmt>, Vec<FnDef>), ParseError> {
     let mut stmts = Vec::new();
     let mut fndefs = Vec::new();
 
     while let Some(_) = input.peek() {
         match input.peek() {
-            Some(& Token::Fn) => fndefs.push(try!(parse_fn(input))),
-            _ => stmts.push(try!(parse_stmt(input)))
+            Some(&Token::Fn) => fndefs.push(try!(parse_fn(input))),
+            _ => stmts.push(try!(parse_stmt(input))),
         }
 
         match input.peek() {
-            Some(& Token::Semicolon) => {input.next();},
-            _ => ()
+            Some(&Token::Semicolon) => {
+                input.next();
+            }
+            _ => (),
         }
     }
 
     Ok((stmts, fndefs))
 }
 
-pub fn parse<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<(Vec<Stmt>, Vec<FnDef>), ParseError> {
+pub fn parse<'a>(input: &mut Peekable<TokenIterator<'a>>)
+                 -> Result<(Vec<Stmt>, Vec<FnDef>), ParseError> {
     parse_top_level(input)
 }
