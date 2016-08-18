@@ -1314,21 +1314,26 @@ impl Engine {
         fn or(x: bool, y: bool) -> bool {
             x || y
         }
+        fn concat(x: String, y: String) -> String {
+            x + &y
+        }
 
         reg_op!(engine, "+", add, i32, i64, u32, u64, f32, f64);
         reg_op!(engine, "-", sub, i32, i64, u32, u64, f32, f64);
         reg_op!(engine, "*", mul, i32, i64, u32, u64, f32, f64);
         reg_op!(engine, "/", div, i32, i64, u32, u64, f32, f64);
 
-        reg_cmp!(engine, "<", lt, i32, i64, u32, u64);
-        reg_cmp!(engine, "<=", lte, i32, i64, u32, u64);
-        reg_cmp!(engine, ">", gt, i32, i64, u32, u64);
-        reg_cmp!(engine, ">=", gte, i32, i64, u32, u64);
-        reg_cmp!(engine, "==", eq, i32, i64, u32, u64, bool);
-        reg_cmp!(engine, "!=", ne, i32, i64, u32, u64, bool);
+        reg_cmp!(engine, "<", lt, i32, i64, u32, u64, String);
+        reg_cmp!(engine, "<=", lte, i32, i64, u32, u64, String);
+        reg_cmp!(engine, ">", gt, i32, i64, u32, u64, String);
+        reg_cmp!(engine, ">=", gte, i32, i64, u32, u64, String);
+        reg_cmp!(engine, "==", eq, i32, i64, u32, u64, bool, String);
+        reg_cmp!(engine, "!=", ne, i32, i64, u32, u64, bool, String);
 
         reg_op!(engine, "||", or, bool);
         reg_op!(engine, "&&", and, bool);
+
+        engine.register_fn("+", concat);
 
         // engine.register_fn("[]", idx);
         // FIXME?  Registering array lookups are a special case because we want to return boxes
@@ -1673,6 +1678,12 @@ fn test_string() {
 
     if let Ok(result) = engine.eval::<String>("\"Test string: \\u2764\"") {
         assert_eq!(result, "Test string: ❤");
+    } else {
+        assert!(false);
+    }
+
+    if let Ok(result) = engine.eval::<String>("\"foo\" + \"bar\"") {
+        assert_eq!(result, "foobar");
     } else {
         assert!(false);
     }

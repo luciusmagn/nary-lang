@@ -1,4 +1,3 @@
-use std::io::prelude::*;
 use std::error::Error;
 use std::fmt;
 use std::iter::Peekable;
