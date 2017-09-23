@@ -854,6 +854,7 @@ fn parse_binop<'a>(input: &mut Peekable<TokenIterator<'a>>, prec: i32, lhs: Expr
 				Token::Minus => Expr::FnCall("-".to_string(), Box::new(vec![lhs_curr, rhs])),
 				Token::Multiply => Expr::FnCall("*".to_string(), Box::new(vec![lhs_curr, rhs])),
 				Token::Divide => Expr::FnCall("/".to_string(), Box::new(vec![lhs_curr, rhs])),
+				Token::Modulo => Expr::FnCall("%".to_string(), Box::new(vec![lhs_curr, rhs])),
 				Token::Equals => Expr::Assignment(Box::new(lhs_curr), Box::new(rhs)),
 				Token::Period => Expr::Dot(Box::new(lhs_curr), Box::new(rhs)),
 				Token::EqualTo => Expr::FnCall("==".to_string(), Box::new(vec![lhs_curr, rhs])),
