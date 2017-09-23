@@ -1363,62 +1363,20 @@ impl Engine
             )
         }
 
-		fn add<T: Add>(x: T, y: T) -> <T as Add>::Output
-		{
-			x + y
-		}
-		fn sub<T: Sub>(x: T, y: T) -> <T as Sub>::Output
-		{
-			x - y
-		}
-		fn mul<T: Mul>(x: T, y: T) -> <T as Mul>::Output
-		{
-			x * y
-		}
-		fn div<T: Div>(x: T, y: T) -> <T as Div>::Output
-		{
-			x / y
-		}
-		fn rem<T: Rem>(x: T, y: T) -> <T as Rem>::Output
-		{
-			x % y
-		}
-		fn lt<T: Ord>(x: T, y: T) -> bool
-		{
-			x < y
-		}
-		fn lte<T: Ord>(x: T, y: T) -> bool
-		{
-			x <= y
-		}
-		fn gt<T: Ord>(x: T, y: T) -> bool
-		{
-			x > y
-		}
-		fn gte<T: Ord>(x: T, y: T) -> bool
-		{
-			x >= y
-		}
-		fn eq<T: Eq>(x: T, y: T) -> bool
-		{
-			x == y
-		}
-		fn ne<T: Eq>(x: T, y: T) -> bool
-		{
-			x != y
-		}
-		fn and(x: bool, y: bool) -> bool
-		{
-			x && y
-		}
-		fn or(x: bool, y: bool) -> bool
-		{
-			x || y
-		}
-		fn concat(x: String, y: String) -> String
-		{
-			x + &y
-		}
+		fn add<T: Add>(x: T, y: T) -> <T as Add>::Output {x + y}
+		fn sub<T: Sub>(x: T, y: T) -> <T as Sub>::Output {x - y}
+		fn mul<T: Mul>(x: T, y: T) -> <T as Mul>::Output {x * y}
+		fn div<T: Div>(x: T, y: T) -> <T as Div>::Output {x / y}
+		fn rem<T: Rem>(x: T, y: T) -> <T as Rem>::Output {x % y}
+		fn lt<T: Ord>(x: T, y: T) ->  bool {x < y}
+		fn gt<T: Ord>(x: T, y: T) ->  bool {x > y}
+		fn lte<T: Ord>(x: T, y: T) -> bool {x <= y}
+		fn gte<T: Ord>(x: T, y: T) -> bool {x >= y}
+		fn eq<T: Eq>(x: T, y: T) ->   bool {x == y}
+		fn ne<T: Eq>(x: T, y: T) ->   bool {x != y}
+		fn and(x: bool, y: bool) ->   bool {x && y}
+		fn or(x: bool, y: bool) ->    bool {x || y}
+		fn concat(x: String, y: String) -> String {x + &y}
 
 		reg_op!(engine, "+", add, i32, i64, u32, u64, f32, f64);
 		reg_op!(engine, "-", sub, i32, i64, u32, u64, f32, f64);
