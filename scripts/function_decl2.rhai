@@ -1,5 +1,5 @@
 fn addme(a, b) {
-    a+b
+	a+b
 }
 
-print(addme(3, 4))
+print(addme(3, 4));

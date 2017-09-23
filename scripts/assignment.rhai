@@ -1,2 +1,2 @@
-var x = 78
-print(x)
+let x = 78;
+print(x);

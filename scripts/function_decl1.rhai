@@ -1,5 +1,6 @@
-fn bob() {
-    3
+fn bob()
+{
+	3
 }
 
-print(bob())
+print(bob());
