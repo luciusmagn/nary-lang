@@ -1,10 +1,10 @@
 [package]
-name = "rhai"
-version = "0.4.0"
-authors = ["Jonathan Turner"]
-description = "Embedded scripting for Rust"
-homepage = "https://github.com/jonathandturner/rhai"
-repository = "https://github.com/jonathandturner/rhai"
+name = "nary"
+version = "0.1.2"
+authors = ["luciusmagn"]
+description = "Embedded scripting language, a fork of Jonathan Turner's Rhai"
+homepage = "https://github.com/luciusmagn/nary"
+repository = "https://github.com/luciusmagn/nary"
 readme = "README.md"
 license = "MIT/Apache-2.0"
 include = [
@@ -12,3 +12,32 @@ include = [
     "scripts/*.rhai",
     "Cargo.toml"
 ]
+
+
+[features]
+default = ["stdlib"]
+stdlib = []
+
+[[bin]]
+name = "arrays"
+path = "examples/arrays_and_structs.rs"
+
+[[bin]]
+name = "types"
+path = "examples/custom_types_and_methods.rs"
+
+[[bin]]
+name = "hello"
+path = "examples/hello.rs"
+
+[[bin]]
+name = "reuse_scope"
+path = "examples/reuse_scope.rs"
+
+[[bin]]
+name = "nary_runner"
+path = "examples/nary_runner.rs"
+
+[[bin]]
+name = "simple_fn"
+path = "examples/simple_fn.rs"
