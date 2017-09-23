@@ -1,0 +1,22 @@
+array_layout = "Block"
+attributes_on_same_line_as_field = false
+attributes_on_same_line_as_variant = false
+binop_separator = "Front"
+chain_indent = "Block"
+chain_split_single_child = true
+closure_block_indent_threshold = 2
+condense_wildcard_suffixes = true
+control_style = "Rfc"
+control_brace_style = "AlwaysNextLine"
+fn_brace_style = "AlwaysNextLine"
+fn_return_inden = "WithWhereClause"
+fn_single_line = true
+generics_indent = "Visual"
+hard_tabs = true
+item_brace_style = "AlwaysNextLine"
+match_block_trailing_comma = true
+match_pattern_separator_break_point = "Front"
+max_width = 130
+struct_field_align_threshold = 10
+take_source_hints = true
+
