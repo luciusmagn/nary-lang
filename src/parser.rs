@@ -646,7 +646,7 @@ fn get_precedence(token: &Token) -> i32
 
 fn parse_paren_expr<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<Expr, ParseError>
 {
-	let expr = try!(parse_expr(input));
+	let expr = parse_expr(input)?;
 
 	match input.next()
 	{
@@ -747,7 +747,7 @@ fn parse_array_expr<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<Expr,
 	{
 		while let Some(_) = input.peek()
 		{
-			arr.push(try!(parse_expr(input)));
+			arr.push(parse_expr(input)?);
 			match input.peek()
 			{
 				Some(&Token::Comma) =>
@@ -829,7 +829,7 @@ fn parse_binop<'a>(input: &mut Peekable<TokenIterator<'a>>, prec: i32, lhs: Expr
 
 		if let Some(op_token) = input.next()
 		{
-			let mut rhs = try!(parse_primary(input));
+			let mut rhs = parse_primary(input)?;
 
 			let mut next_prec = -1;
 
@@ -840,12 +840,12 @@ fn parse_binop<'a>(input: &mut Peekable<TokenIterator<'a>>, prec: i32, lhs: Expr
 
 			if curr_prec < next_prec
 			{
-				rhs = try!(parse_binop(input, curr_prec + 1, rhs));
+				rhs = parse_binop(input, curr_prec + 1, rhs)?;
 			}
 			else if curr_prec >= 100
 			{
 				// Always bind right to left for precedence over 100
-				rhs = try!(parse_binop(input, curr_prec, rhs));
+				rhs = parse_binop(input, curr_prec, rhs)?;
 			}
 
 			lhs_curr = match op_token
@@ -872,7 +872,7 @@ fn parse_binop<'a>(input: &mut Peekable<TokenIterator<'a>>, prec: i32, lhs: Expr
 
 fn parse_expr<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<Expr, ParseError>
 {
-	let lhs = try!(parse_primary(input));
+	let lhs = parse_primary(input)?;
 
 	parse_binop(input, 0, lhs)
 }
@@ -881,15 +881,15 @@ fn parse_if<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<Stmt, ParseEr
 {
 	input.next();
 
-	let guard = try!(parse_expr(input));
-	let body = try!(parse_block(input));
+	let guard = parse_expr(input)?;
+	let body = parse_block(input)?;
 
 	match input.peek()
 	{
 		Some(&Token::Else) =>
 		{
 			input.next();
-			let else_body = try!(parse_block(input));
+			let else_body = parse_block(input)?;
 			Ok(Stmt::IfElse(Box::new(guard), Box::new(body), Box::new(else_body)))
 		},
 		_ => Ok(Stmt::If(Box::new(guard), Box::new(body))),
@@ -900,8 +900,8 @@ fn parse_while<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<Stmt, Pars
 {
 	input.next();
 
-	let guard = try!(parse_expr(input));
-	let body = try!(parse_block(input));
+	let guard = parse_expr(input)?;
+	let body = parse_block(input)?;
 
 	Ok(Stmt::While(Box::new(guard), Box::new(body)))
 }
@@ -921,7 +921,7 @@ fn parse_var<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<Stmt, ParseE
 		Some(&Token::Equals) =>
 		{
 			input.next();
-			let initializer = try!(parse_expr(input));
+			let initializer = parse_expr(input)?;
 			Ok(Stmt::Var(name, Some(Box::new(initializer))))
 		},
 		_ => Ok(Stmt::Var(name, None)),
@@ -950,7 +950,7 @@ fn parse_block<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<Stmt, Pars
 	{
 		while let Some(_) = input.peek()
 		{
-			stmts.push(try!(parse_stmt(input)));
+			stmts.push(parse_stmt(input)?);
 			match input.peek()
 			{
 				Some(&Token::Semicolon) =>
@@ -981,7 +981,7 @@ fn parse_block<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<Stmt, Pars
 
 fn parse_expr_stmt<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<Stmt, ParseError>
 {
-	let expr = try!(parse_expr(input));
+	let expr = parse_expr(input)?;
 	Ok(Stmt::Expr(Box::new(expr)))
 }
 
@@ -1004,7 +1004,7 @@ fn parse_stmt<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<Stmt, Parse
 				Some(&Token::Semicolon) => Ok(Stmt::Return),
 				_ =>
 				{
-					let ret = try!(parse_expr(input));
+					let ret = parse_expr(input)?;
 					Ok(Stmt::ReturnWithVal(Box::new(ret)))
 				},
 			}
@@ -1063,7 +1063,7 @@ fn parse_fn<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<FnDef, ParseE
 		}
 	}
 
-	let body = try!(parse_block(input));
+	let body = parse_block(input)?;
 
 	Ok(FnDef {
 	       name: name,
