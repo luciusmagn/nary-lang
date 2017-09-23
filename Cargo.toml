@@ -21,23 +21,29 @@ stdlib = []
 [[bin]]
 name = "arrays"
 path = "examples/arrays_and_structs.rs"
+test = false
 
 [[bin]]
 name = "types"
 path = "examples/custom_types_and_methods.rs"
+test = false
 
 [[bin]]
 name = "hello"
 path = "examples/hello.rs"
+test = false
 
 [[bin]]
 name = "reuse_scope"
 path = "examples/reuse_scope.rs"
+test = false
 
 [[bin]]
 name = "nary_runner"
 path = "examples/nary_runner.rs"
+test = false
 
 [[bin]]
 name = "simple_fn"
 path = "examples/simple_fn.rs"
+test = false
