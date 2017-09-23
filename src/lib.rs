@@ -1,4 +1,4 @@
-//! Rhai - embedded scripting for Rust
+//! Nary - an embedded scripting language for Rust
 
 mod engine;
 mod fn_register;

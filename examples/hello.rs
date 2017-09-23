@@ -1,10 +1,12 @@
-extern crate rhai;
-use rhai::Engine;
+extern crate nary;
+use nary::Engine;
 
-fn main() {
-    let mut engine = Engine::new();
+fn main()
+{
+	let mut engine = Engine::new();
 
-    if let Ok(result) = engine.eval::<i64>("40 + 2") {
-        println!("Answer: {}", result);  // prints 42
-    }
+	if let Ok(result) = engine.eval::<i64>("40 + 2")
+	{
+		println!("Answer: {}", result); // prints 42
+	}
 }
