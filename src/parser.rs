@@ -147,6 +147,7 @@ pub enum Token
 	Minus,
 	Multiply,
 	Divide,
+	Modulo,
 	Semicolon,
 	Colon,
 	Comma,
@@ -391,7 +392,7 @@ impl<'a> Iterator for TokenIterator<'a>
 					{
 						return Some(Token::False);
 					}
-					else if out == "var"
+					else if out == "let"
 					{
 						return Some(Token::Var);
 					}
@@ -496,6 +497,10 @@ impl<'a> Iterator for TokenIterator<'a>
 				'/' =>
 				{
 					return Some(Token::Divide);
+				},
+				'%' =>
+				{
+					return Some(Token::Modulo);
 				},
 				';' =>
 				{
@@ -603,7 +608,7 @@ impl<'a> Iterator for TokenIterator<'a>
 						},
 					}
 				},
-				' ' | '\n' | '\r' => (),
+				_x if _x.is_whitespace() => (),
 				_ => return Some(Token::LexErr(LexError::UnexpectedChar)),
 			}
 		}

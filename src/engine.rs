@@ -7,7 +7,7 @@ use std::fmt;
 use parser::{lex, parse, Expr, Stmt, FnDef};
 use fn_register::FnRegister;
 
-use std::ops::{Add, Sub, Mul, Div};
+use std::ops::{Add, Sub, Mul, Div, Rem};
 use std::cmp::{Ord, Eq};
 
 #[derive(Debug)]
@@ -1379,6 +1379,10 @@ impl Engine
 		{
 			x / y
 		}
+		fn rem<T: Rem>(x: T, y: T) -> <T as Rem>::Output
+		{
+			x % y
+		}
 		fn lt<T: Ord>(x: T, y: T) -> bool
 		{
 			x < y
@@ -1420,6 +1424,7 @@ impl Engine
 		reg_op!(engine, "-", sub, i32, i64, u32, u64, f32, f64);
 		reg_op!(engine, "*", mul, i32, i64, u32, u64, f32, f64);
 		reg_op!(engine, "/", div, i32, i64, u32, u64, f32, f64);
+		reg_op!(engine, "%", rem, i32, i64, u32, u64, f32, f64);
 
 		reg_cmp!(engine, "<", lt, i32, i64, u32, u64, String);
 		reg_cmp!(engine, "<=", lte, i32, i64, u32, u64, String);
