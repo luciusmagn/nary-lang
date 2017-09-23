@@ -1,3 +1,5 @@
+// TODO figure out the mess with getting function name in closure
+
 use std::any::Any;
 use std::boxed::Box;
 
@@ -46,7 +48,7 @@ impl<'a, A, T, U, V, W, X, Y, Z> FnRegister<A, Z, (&'a mut T, U, V, W, X, Y)> fo
 				{
 					Ok(Box::new(fun(b, c.clone(), d.clone(), e.clone(), f.clone(), g.clone())) as Box<Any>)
 				},
-				_ => Err(EvalAltResult::ErrorFunctionArgMismatch),
+				_ => Err(EvalAltResult::ErrorFunctionArgMismatch(String::new())),
 			}
 		});
 
@@ -98,7 +100,7 @@ impl<'a, A, T, U, V, W, X, Y, Z> FnRegister<A, Z, (&'a T, U, V, W, X, Y)> for En
 					                f.clone(),
 					                g.clone())) as Box<Any>)
 				},
-				_ => Err(EvalAltResult::ErrorFunctionArgMismatch),
+				_ => Err(EvalAltResult::ErrorFunctionArgMismatch(String::new())),
 			}
 		});
 
@@ -141,7 +143,7 @@ impl<'a, A, T, U, V, W, X, Y> FnRegister<A, Y, (&'a mut T, U, V, W, X)> for Engi
 				{
 					Ok(Box::new(fun(b, c.clone(), d.clone(), e.clone(), f.clone())) as Box<Any>)
 				},
-				_ => Err(EvalAltResult::ErrorFunctionArgMismatch),
+				_ => Err(EvalAltResult::ErrorFunctionArgMismatch(String::new())),
 			}
 		});
 
@@ -184,7 +186,7 @@ impl<'a, A, T, U, V, W, X, Y> FnRegister<A, Y, (&'a T, U, V, W, X)> for Engine
 				{
 					Ok(Box::new(fun(b.clone(), c.clone(), d.clone(), e.clone(), f.clone())) as Box<Any>)
 				},
-				_ => Err(EvalAltResult::ErrorFunctionArgMismatch),
+				_ => Err(EvalAltResult::ErrorFunctionArgMismatch(String::new())),
 			}
 		});
 
@@ -213,7 +215,7 @@ impl<'a, A, T, U, V, W, X> FnRegister<A, X, (&'a mut T, U, V, W)> for Engine
 				match (inside1, inside2, inside3, inside4)
 				{
 					(Some(b), Some(c), Some(d), Some(e)) => Ok(Box::new(fun(b, c.clone(), d.clone(), e.clone())) as Box<Any>),
-					_ => Err(EvalAltResult::ErrorFunctionArgMismatch),
+					_ => Err(EvalAltResult::ErrorFunctionArgMismatch(String::new())),
 				}
 			});
 
@@ -245,7 +247,7 @@ impl<'a, A, T, U, V, W, X> FnRegister<A, X, (&'a T, U, V, W)> for Engine
 					{
 						Ok(Box::new(fun(b.clone(), c.clone(), d.clone(), e.clone())) as Box<Any>)
 					},
-					_ => Err(EvalAltResult::ErrorFunctionArgMismatch),
+					_ => Err(EvalAltResult::ErrorFunctionArgMismatch(String::new())),
 				}
 			});
 
@@ -272,7 +274,7 @@ impl<'a, A, T, U, V, W> FnRegister<A, W, (&'a mut T, U, V)> for Engine
 				match (inside1, inside2, inside3)
 				{
 					(Some(b), Some(c), Some(d)) => Ok(Box::new(fun(b, c.clone(), d.clone())) as Box<Any>),
-					_ => Err(EvalAltResult::ErrorFunctionArgMismatch),
+					_ => Err(EvalAltResult::ErrorFunctionArgMismatch(String::new())),
 				}
 			});
 
@@ -299,7 +301,7 @@ impl<'a, A, T, U, V, W> FnRegister<A, W, (&'a T, U, V)> for Engine
 				match (inside1, inside2, inside3)
 				{
 					(Some(b), Some(c), Some(d)) => Ok(Box::new(fun(b.clone(), c.clone(), d.clone())) as Box<Any>),
-					_ => Err(EvalAltResult::ErrorFunctionArgMismatch),
+					_ => Err(EvalAltResult::ErrorFunctionArgMismatch(String::new())),
 				}
 			});
 
@@ -324,7 +326,7 @@ impl<'a, A, T, U, V> FnRegister<A, V, (&'a mut T, U)> for Engine
 				match (inside1, inside2)
 				{
 					(Some(b), Some(c)) => Ok(Box::new(fun(b, c.clone())) as Box<Any>),
-					_ => Err(EvalAltResult::ErrorFunctionArgMismatch),
+					_ => Err(EvalAltResult::ErrorFunctionArgMismatch(String::new())),
 				}
 			});
 
@@ -349,7 +351,7 @@ impl<'a, A, T, U, V> FnRegister<A, V, (&'a T, U)> for Engine
 				match (inside1, inside2)
 				{
 					(Some(b), Some(c)) => Ok(Box::new(fun(b.clone(), c.clone())) as Box<Any>),
-					_ => Err(EvalAltResult::ErrorFunctionArgMismatch),
+					_ => Err(EvalAltResult::ErrorFunctionArgMismatch(String::new())),
 				}
 			});
 
@@ -371,7 +373,7 @@ impl<'a, A, T, U> FnRegister<A, U, (&'a mut T)> for Engine
 			match inside
 			{
 				Some(b) => Ok(Box::new(fun(b)) as Box<Any>),
-				None => Err(EvalAltResult::ErrorFunctionArgMismatch),
+				None => Err(EvalAltResult::ErrorFunctionArgMismatch(String::new())),
 			}
 		});
 
@@ -393,7 +395,7 @@ impl<'a, A, T, U> FnRegister<A, U, (&'a T)> for Engine
 			match inside
 			{
 				Some(b) => Ok(Box::new(fun(b.clone())) as Box<Any>),
-				None => Err(EvalAltResult::ErrorFunctionArgMismatch),
+				None => Err(EvalAltResult::ErrorFunctionArgMismatch(String::new())),
 			}
 		});
 

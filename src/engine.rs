@@ -13,8 +13,8 @@ use std::cmp::{Ord, Eq};
 #[derive(Debug)]
 pub enum EvalAltResult
 {
-	ErrorFunctionNotFound,
-	ErrorFunctionArgMismatch,
+	ErrorFunctionNotFound(String),
+	ErrorFunctionArgMismatch(String),
 	ErrorFunctionCallNotSupported,
 	ErrorIndexMismatch,
 	ErrorIfGuardMismatch,
@@ -33,22 +33,7 @@ impl Error for EvalAltResult
 {
 	fn description(&self) -> &str
 	{
-		match *self
-		{
-			EvalAltResult::ErrorFunctionNotFound => "Function not found",
-			EvalAltResult::ErrorFunctionArgMismatch => "Function argument types do not match",
-			EvalAltResult::ErrorFunctionCallNotSupported => "Function call with > 2 argument not supported",
-			EvalAltResult::ErrorIndexMismatch => "Index does not match array",
-			EvalAltResult::ErrorIfGuardMismatch => "If guards expect boolean expression",
-			EvalAltResult::ErrorVariableNotFound(_) => "Variable not found",
-			EvalAltResult::ErrorFunctionArityNotSupported => "Functions of more than 3 parameters are not yet supported",
-			EvalAltResult::ErrorAssignmentToUnknownLHS => "Assignment to an unsupported left-hand side",
-			EvalAltResult::ErrorMismatchOutputType => "Cast of output failed",
-			EvalAltResult::ErrorCantOpenScriptFile => "Cannot open script file",
-			EvalAltResult::InternalErrorMalformedDotExpression => "[Internal error] Unexpected expression in dot expression",
-			EvalAltResult::LoopBreak => "Loop broken before completion (not an error)",
-			EvalAltResult::Return(_) => "Function returned value (not an error)",
-		}
+		"Use the Display trait implemented for EvalAltResult"
 	}
 
 	fn cause(&self) -> Option<&Error>
@@ -61,7 +46,22 @@ impl fmt::Display for EvalAltResult
 {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
 	{
-		write!(f, "{}", self.description())
+		match *self
+		{
+			EvalAltResult::ErrorFunctionNotFound(ref n) => write!(f, "Function not found: {}", n),
+			EvalAltResult::ErrorFunctionArgMismatch(ref n) => write!(f, "Function argument types do not match: {}", n),
+			EvalAltResult::ErrorFunctionCallNotSupported => write!(f, "Function call with > 2 argument not supported"),
+			EvalAltResult::ErrorIndexMismatch => write!(f, "Index does not match array"),
+			EvalAltResult::ErrorIfGuardMismatch => write!(f, "If guards expect boolean expression"),
+			EvalAltResult::ErrorVariableNotFound(ref x) => write!(f, "Variable not found: {}", x),
+			EvalAltResult::ErrorFunctionArityNotSupported => write!(f, "Functions of more than 3 parameters are not yet supported"),
+			EvalAltResult::ErrorAssignmentToUnknownLHS => write!(f, "Assignment to an unsupported left-hand side"),
+			EvalAltResult::ErrorMismatchOutputType => write!(f, "Cast of output failed"),
+			EvalAltResult::ErrorCantOpenScriptFile => write!(f, "Cannot open script file"),
+			EvalAltResult::InternalErrorMalformedDotExpression => write!(f, "[Internal error] Unexpected expression in dot expression"),
+			EvalAltResult::LoopBreak => write!(f, "Loop broken before completion (not an error)"),
+			EvalAltResult::Return(_) => write!(f, "Function returned value (not an error)"),
+		}
 	}
 }
 
@@ -138,7 +138,7 @@ impl Engine
 								{
 									if f.params.len() != 6
 									{
-										return Err(EvalAltResult::ErrorFunctionArgMismatch);
+										return Err(EvalAltResult::ErrorFunctionArgMismatch(name.to_string()));
 									}
 
 									let mut new_scope: Scope = Vec::new();
@@ -160,7 +160,7 @@ impl Engine
 											new_scope.push((f.params[4].clone(), r5));
 											new_scope.push((f.params[5].clone(), r6));
 										},
-										_ => return Err(EvalAltResult::ErrorFunctionArgMismatch),
+										_ => return Err(EvalAltResult::ErrorFunctionArgMismatch(name.to_string())),
 									}
 									match self.eval_stmt(&mut new_scope, &*f.body)
 									{
@@ -171,7 +171,7 @@ impl Engine
 								_ => (),
 							}
 						}
-						return Err(EvalAltResult::ErrorFunctionArgMismatch);
+						return Err(EvalAltResult::ErrorFunctionArgMismatch(name.to_string()));
 					},
 					(Some(ref mut a1), Some(ref mut a2), Some(ref mut a3), Some(ref mut a4), Some(ref mut a5), None) =>
 					{
@@ -191,7 +191,7 @@ impl Engine
 								{
 									if f.params.len() != 5
 									{
-										return Err(EvalAltResult::ErrorFunctionArgMismatch);
+										return Err(EvalAltResult::ErrorFunctionArgMismatch(name.to_string()));
 									}
 
 									let mut new_scope: Scope = Vec::new();
@@ -211,7 +211,7 @@ impl Engine
 											new_scope.push((f.params[3].clone(), r4));
 											new_scope.push((f.params[4].clone(), r5));
 										},
-										_ => return Err(EvalAltResult::ErrorFunctionArgMismatch),
+										_ => return Err(EvalAltResult::ErrorFunctionArgMismatch(name.to_string())),
 									}
 									match self.eval_stmt(&mut new_scope, &*f.body)
 									{
@@ -222,7 +222,7 @@ impl Engine
 								_ => (),
 							}
 						}
-						return Err(EvalAltResult::ErrorFunctionArgMismatch);
+						return Err(EvalAltResult::ErrorFunctionArgMismatch(name.to_string()));
 					},
 					(Some(ref mut a1), Some(ref mut a2), Some(ref mut a3), Some(ref mut a4), None, None) =>
 					{
@@ -242,7 +242,7 @@ impl Engine
 								{
 									if f.params.len() != 4
 									{
-										return Err(EvalAltResult::ErrorFunctionArgMismatch);
+										return Err(EvalAltResult::ErrorFunctionArgMismatch(name.to_string()));
 									}
 
 									let mut new_scope: Scope = Vec::new();
@@ -259,7 +259,7 @@ impl Engine
 											new_scope.push((f.params[2].clone(), r3));
 											new_scope.push((f.params[3].clone(), r4));
 										},
-										_ => return Err(EvalAltResult::ErrorFunctionArgMismatch),
+										_ => return Err(EvalAltResult::ErrorFunctionArgMismatch(name.to_string())),
 									}
 									match self.eval_stmt(&mut new_scope, &*f.body)
 									{
@@ -270,7 +270,7 @@ impl Engine
 								_ => (),
 							}
 						}
-						return Err(EvalAltResult::ErrorFunctionArgMismatch);
+						return Err(EvalAltResult::ErrorFunctionArgMismatch(name.to_string()));
 					},
 					(Some(ref mut a1), Some(ref mut a2), Some(ref mut a3), None, None, None) =>
 					{
@@ -290,7 +290,7 @@ impl Engine
 								{
 									if f.params.len() != 3
 									{
-										return Err(EvalAltResult::ErrorFunctionArgMismatch);
+										return Err(EvalAltResult::ErrorFunctionArgMismatch(name.to_string()));
 									}
 
 									let mut new_scope: Scope = Vec::new();
@@ -305,7 +305,7 @@ impl Engine
 											new_scope.push((f.params[1].clone(), r2));
 											new_scope.push((f.params[2].clone(), r3));
 										},
-										_ => return Err(EvalAltResult::ErrorFunctionArgMismatch),
+										_ => return Err(EvalAltResult::ErrorFunctionArgMismatch(name.to_string())),
 									}
 									match self.eval_stmt(&mut new_scope, &*f.body)
 									{
@@ -316,7 +316,7 @@ impl Engine
 								_ => (),
 							}
 						}
-						return Err(EvalAltResult::ErrorFunctionArgMismatch);
+						return Err(EvalAltResult::ErrorFunctionArgMismatch(name.to_string()));
 					},
 					(Some(ref mut a1), Some(ref mut a2), None, None, None, None) =>
 					{
@@ -336,7 +336,7 @@ impl Engine
 								{
 									if f.params.len() != 2
 									{
-										return Err(EvalAltResult::ErrorFunctionArgMismatch);
+										return Err(EvalAltResult::ErrorFunctionArgMismatch(name.to_string()));
 									}
 
 									let mut new_scope: Scope = Vec::new();
@@ -349,7 +349,7 @@ impl Engine
 											new_scope.push((f.params[0].clone(), r1));
 											new_scope.push((f.params[1].clone(), r2));
 										},
-										_ => return Err(EvalAltResult::ErrorFunctionArgMismatch),
+										_ => return Err(EvalAltResult::ErrorFunctionArgMismatch(name.to_string())),
 									}
 									match self.eval_stmt(&mut new_scope, &*f.body)
 									{
@@ -360,7 +360,7 @@ impl Engine
 								_ => (),
 							}
 						}
-						return Err(EvalAltResult::ErrorFunctionArgMismatch);
+						return Err(EvalAltResult::ErrorFunctionArgMismatch(name.to_string()));
 					},
 					(Some(ref mut a1), None, None, None, None, None) =>
 					{
@@ -380,7 +380,7 @@ impl Engine
 								{
 									if f.params.len() != 1
 									{
-										return Err(EvalAltResult::ErrorFunctionArgMismatch);
+										return Err(EvalAltResult::ErrorFunctionArgMismatch(name.to_string()));
 									}
 
 									let mut new_scope: Scope = Vec::new();
@@ -391,7 +391,7 @@ impl Engine
 										{
 											new_scope.push((f.params[0].clone(), r1));
 										},
-										_ => return Err(EvalAltResult::ErrorFunctionArgMismatch),
+										_ => return Err(EvalAltResult::ErrorFunctionArgMismatch(name.to_string())),
 									}
 									match self.eval_stmt(&mut new_scope, &*f.body)
 									{
@@ -402,7 +402,7 @@ impl Engine
 								_ => (),
 							}
 						}
-						return Err(EvalAltResult::ErrorFunctionArgMismatch);
+						return Err(EvalAltResult::ErrorFunctionArgMismatch(name.to_string()));
 					},
 					_ =>
 					{
@@ -422,7 +422,7 @@ impl Engine
 								{
 									if f.params.len() != 0
 									{
-										return Err(EvalAltResult::ErrorFunctionArgMismatch);
+										return Err(EvalAltResult::ErrorFunctionArgMismatch(name.to_string()));
 									}
 
 									let mut new_scope: Scope = Vec::new();
@@ -435,11 +435,11 @@ impl Engine
 								_ => (),
 							}
 						}
-						return Err(EvalAltResult::ErrorFunctionArgMismatch);
+						return Err(EvalAltResult::ErrorFunctionArgMismatch(name.to_string()));
 					},
 				}
 			},
-			None => Err(EvalAltResult::ErrorFunctionNotFound),
+			None => Err(EvalAltResult::ErrorFunctionNotFound(name.to_string())),
 		}
 	}
 
@@ -456,7 +456,6 @@ impl Engine
 	pub fn register_get<T: Clone + Any, U: Clone + Any, F>(&mut self, name: &str, get_fn: F)
 		where F: 'static + Fn(&mut T) -> U
 	{
-
 		let get_name = "get$".to_string() + name;
 		self.register_fn(&get_name, get_fn);
 	}
@@ -464,7 +463,6 @@ impl Engine
 	pub fn register_set<T: Clone + Any, U: Clone + Any, F>(&mut self, name: &str, set_fn: F)
 		where F: 'static + Fn(&mut T, U) -> ()
 	{
-
 		let set_name = "set$".to_string() + name;
 		self.register_fn(&set_name, set_fn);
 	}
@@ -473,7 +471,6 @@ impl Engine
 		where F: 'static + Fn(&mut T) -> U,
 		      G: 'static + Fn(&mut T, U) -> ()
 	{
-
 		self.register_get(name, get_fn);
 		self.register_set(name, set_fn);
 	}
@@ -490,7 +487,7 @@ impl Engine
 				}
 				else if args.len() == 1
 				{
-					let mut arg = try!(self.eval_expr(scope, &args[0]));
+					let mut arg = self.eval_expr(scope, &args[0])?;
 
 					return self.call_fn(&fn_name,
 					                    Some(this_ptr),
@@ -502,8 +499,8 @@ impl Engine
 				}
 				else if args.len() == 2
 				{
-					let mut arg1 = try!(self.eval_expr(scope, &args[0]));
-					let mut arg2 = try!(self.eval_expr(scope, &args[1]));
+					let mut arg1 = self.eval_expr(scope, &args[0])?;
+					let mut arg2 = self.eval_expr(scope, &args[1])?;
 
 					return self.call_fn(&fn_name,
 					                    Some(this_ptr),
@@ -515,9 +512,9 @@ impl Engine
 				}
 				else if args.len() == 3
 				{
-					let mut arg1 = try!(self.eval_expr(scope, &args[0]));
-					let mut arg2 = try!(self.eval_expr(scope, &args[1]));
-					let mut arg3 = try!(self.eval_expr(scope, &args[2]));
+					let mut arg1 = self.eval_expr(scope, &args[0])?;
+					let mut arg2 = self.eval_expr(scope, &args[1])?;
+					let mut arg3 = self.eval_expr(scope, &args[2])?;
 
 					return self.call_fn(&fn_name,
 					                    Some(this_ptr),
@@ -529,10 +526,10 @@ impl Engine
 				}
 				else if args.len() == 4
 				{
-					let mut arg1 = try!(self.eval_expr(scope, &args[0]));
-					let mut arg2 = try!(self.eval_expr(scope, &args[1]));
-					let mut arg3 = try!(self.eval_expr(scope, &args[2]));
-					let mut arg4 = try!(self.eval_expr(scope, &args[3]));
+					let mut arg1 = self.eval_expr(scope, &args[0])?;
+					let mut arg2 = self.eval_expr(scope, &args[1])?;
+					let mut arg3 = self.eval_expr(scope, &args[2])?;
+					let mut arg4 = self.eval_expr(scope, &args[3])?;
 
 					return self.call_fn(&fn_name,
 					                    Some(this_ptr),
@@ -544,11 +541,11 @@ impl Engine
 				}
 				else if args.len() == 5
 				{
-					let mut arg1 = try!(self.eval_expr(scope, &args[0]));
-					let mut arg2 = try!(self.eval_expr(scope, &args[1]));
-					let mut arg3 = try!(self.eval_expr(scope, &args[2]));
-					let mut arg4 = try!(self.eval_expr(scope, &args[3]));
-					let mut arg5 = try!(self.eval_expr(scope, &args[4]));
+					let mut arg1 = self.eval_expr(scope, &args[0])?;
+					let mut arg2 = self.eval_expr(scope, &args[1])?;
+					let mut arg3 = self.eval_expr(scope, &args[2])?;
+					let mut arg4 = self.eval_expr(scope, &args[3])?;
+					let mut arg5 = self.eval_expr(scope, &args[4])?;
 
 					return self.call_fn(&fn_name,
 					                    Some(this_ptr),
@@ -570,7 +567,7 @@ impl Engine
 			},
 			Expr::Index(ref id, ref idx_raw) =>
 			{
-				let idx = try!(self.eval_expr(scope, idx_raw));
+				let idx = self.eval_expr(scope, idx_raw)?;
 
 				let get_fn_name = "get$".to_string() + id;
 
@@ -670,7 +667,7 @@ impl Engine
 			},
 			Expr::Index(ref id, ref idx_raw) =>
 			{
-				let idx_boxed = try!(self.eval_expr(scope, idx_raw));
+				let idx_boxed = self.eval_expr(scope, idx_raw)?;
 				let idx = if let Ok(i) = idx_boxed.downcast::<i64>()
 				{
 					i
@@ -844,7 +841,7 @@ impl Engine
 			},
 			Expr::Index(ref id, ref idx_raw) =>
 			{
-				let idx_boxed = try!(self.eval_expr(scope, idx_raw));
+				let idx_boxed = self.eval_expr(scope, idx_raw)?;
 				let idx = if let Ok(i) = idx_boxed.downcast::<i64>()
 				{
 					i
@@ -930,7 +927,7 @@ impl Engine
 			},
 			Expr::Index(ref id, ref idx_raw) =>
 			{
-				let idx = try!(self.eval_expr(scope, idx_raw));
+				let idx = self.eval_expr(scope, idx_raw)?;
 
 				for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev()
 				{
@@ -964,7 +961,7 @@ impl Engine
 			},
 			Expr::Assignment(ref id, ref rhs) =>
 			{
-				let rhs_val = try!(self.eval_expr(scope, rhs));
+				let rhs_val = self.eval_expr(scope, rhs)?;
 
 				match **id
 				{
@@ -984,7 +981,7 @@ impl Engine
 					},
 					Expr::Index(ref id, ref idx_raw) =>
 					{
-						let idx = try!(self.eval_expr(scope, idx_raw));
+						let idx = self.eval_expr(scope, idx_raw)?;
 
 						for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev()
 						{
@@ -1022,7 +1019,7 @@ impl Engine
 
 				for item in (*contents).iter()
 				{
-					let arg = try!(self.eval_expr(scope, item));
+					let arg = self.eval_expr(scope, item)?;
 					arr.push(arg);
 				}
 
@@ -1036,14 +1033,14 @@ impl Engine
 				}
 				else if args.len() == 1
 				{
-					let mut arg = try!(self.eval_expr(scope, &args[0]));
+					let mut arg = self.eval_expr(scope, &args[0])?;
 
 					self.call_fn(&fn_name, Some(&mut arg), None, None, None, None, None)
 				}
 				else if args.len() == 2
 				{
-					let mut arg1 = try!(self.eval_expr(scope, &args[0]));
-					let mut arg2 = try!(self.eval_expr(scope, &args[1]));
+					let mut arg1 = self.eval_expr(scope, &args[0])?;
+					let mut arg2 = self.eval_expr(scope, &args[1])?;
 
 					self.call_fn(&fn_name,
 					             Some(&mut arg1),
@@ -1055,9 +1052,9 @@ impl Engine
 				}
 				else if args.len() == 3
 				{
-					let mut arg1 = try!(self.eval_expr(scope, &args[0]));
-					let mut arg2 = try!(self.eval_expr(scope, &args[1]));
-					let mut arg3 = try!(self.eval_expr(scope, &args[2]));
+					let mut arg1 = self.eval_expr(scope, &args[0])?;
+					let mut arg2 = self.eval_expr(scope, &args[1])?;
+					let mut arg3 = self.eval_expr(scope, &args[2])?;
 
 					self.call_fn(&fn_name,
 					             Some(&mut arg1),
@@ -1069,10 +1066,10 @@ impl Engine
 				}
 				else if args.len() == 4
 				{
-					let mut arg1 = try!(self.eval_expr(scope, &args[0]));
-					let mut arg2 = try!(self.eval_expr(scope, &args[1]));
-					let mut arg3 = try!(self.eval_expr(scope, &args[2]));
-					let mut arg4 = try!(self.eval_expr(scope, &args[3]));
+					let mut arg1 = self.eval_expr(scope, &args[0])?;
+					let mut arg2 = self.eval_expr(scope, &args[1])?;
+					let mut arg3 = self.eval_expr(scope, &args[2])?;
+					let mut arg4 = self.eval_expr(scope, &args[3])?;
 
 					self.call_fn(&fn_name,
 					             Some(&mut arg1),
@@ -1084,11 +1081,11 @@ impl Engine
 				}
 				else if args.len() == 5
 				{
-					let mut arg1 = try!(self.eval_expr(scope, &args[0]));
-					let mut arg2 = try!(self.eval_expr(scope, &args[1]));
-					let mut arg3 = try!(self.eval_expr(scope, &args[2]));
-					let mut arg4 = try!(self.eval_expr(scope, &args[3]));
-					let mut arg5 = try!(self.eval_expr(scope, &args[4]));
+					let mut arg1 = self.eval_expr(scope, &args[0])?;
+					let mut arg2 = self.eval_expr(scope, &args[1])?;
+					let mut arg3 = self.eval_expr(scope, &args[2])?;
+					let mut arg4 = self.eval_expr(scope, &args[3])?;
+					let mut arg5 = self.eval_expr(scope, &args[4])?;
 
 					self.call_fn(&fn_name,
 					             Some(&mut arg1),
@@ -1100,12 +1097,12 @@ impl Engine
 				}
 				else if args.len() == 6
 				{
-					let mut arg1 = try!(self.eval_expr(scope, &args[0]));
-					let mut arg2 = try!(self.eval_expr(scope, &args[1]));
-					let mut arg3 = try!(self.eval_expr(scope, &args[2]));
-					let mut arg4 = try!(self.eval_expr(scope, &args[3]));
-					let mut arg5 = try!(self.eval_expr(scope, &args[4]));
-					let mut arg6 = try!(self.eval_expr(scope, &args[5]));
+					let mut arg1 = self.eval_expr(scope, &args[0])?;
+					let mut arg2 = self.eval_expr(scope, &args[1])?;
+					let mut arg3 = self.eval_expr(scope, &args[2])?;
+					let mut arg4 = self.eval_expr(scope, &args[3])?;
+					let mut arg5 = self.eval_expr(scope, &args[4])?;
+					let mut arg6 = self.eval_expr(scope, &args[5])?;
 
 					self.call_fn(&fn_name,
 					             Some(&mut arg1),
@@ -1158,7 +1155,7 @@ impl Engine
 			},
 			Stmt::If(ref guard, ref body) =>
 			{
-				let guard_result = try!(self.eval_expr(scope, guard));
+				let guard_result = self.eval_expr(scope, guard)?;
 				match guard_result.downcast::<bool>()
 				{
 					Ok(g) =>
@@ -1177,7 +1174,7 @@ impl Engine
 			},
 			Stmt::IfElse(ref guard, ref body, ref else_body) =>
 			{
-				let guard_result = try!(self.eval_expr(scope, guard));
+				let guard_result = self.eval_expr(scope, guard)?;
 				match guard_result.downcast::<bool>()
 				{
 					Ok(g) =>
@@ -1198,7 +1195,7 @@ impl Engine
 			{
 				loop
 				{
-					let guard_result = try!(self.eval_expr(scope, guard));
+					let guard_result = self.eval_expr(scope, guard)?;
 					match guard_result.downcast::<bool>()
 					{
 						Ok(g) =>
@@ -1231,7 +1228,7 @@ impl Engine
 			Stmt::Return => return Err(EvalAltResult::Return(Box::new(()))),
 			Stmt::ReturnWithVal(ref a) =>
 			{
-				let result = try!(self.eval_expr(scope, a));
+				let result = self.eval_expr(scope, a)?;
 				return Err(EvalAltResult::Return(result));
 			},
 			Stmt::Var(ref name, ref init) =>
@@ -1240,7 +1237,7 @@ impl Engine
 				{
 					&Some(ref v) =>
 					{
-						let i = try!(self.eval_expr(scope, v));
+						let i = self.eval_expr(scope, v)?;
 						scope.push((name.clone(), i));
 					},
 					&None =>
@@ -1331,7 +1328,7 @@ impl Engine
 					Err(e) => Err(e),
 				}
 			},
-			Err(_) => Err(EvalAltResult::ErrorFunctionArgMismatch),
+			Err(_) => Err(EvalAltResult::ErrorFunctionArgMismatch(String::new())),
 		}
 	}
 
