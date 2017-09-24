@@ -78,7 +78,7 @@ fn test_mismatched_op()
 
 	match engine.eval::<i64>("60 + \"hello\"")
 	{
-		Err(EvalAltResult::ErrorFunctionArgMismatch) => (),
+		Err(EvalAltResult::ErrorFunctionArgMismatch(_)) => (),
 		_ => assert!(false),
 	}
 }
