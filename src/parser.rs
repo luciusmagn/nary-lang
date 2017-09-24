@@ -159,6 +159,7 @@ pub enum Token
 	Var,
 	If,
 	Else,
+	Thread,
 	While,
 	LessThan,
 	GreaterThan,
@@ -421,6 +422,10 @@ impl<'a> Iterator for TokenIterator<'a>
 					else if out == "fn"
 					{
 						return Some(Token::Fn);
+					}
+					else if out == "thread"
+					{
+						return Some(Token::Thread);
 					}
 					else
 					{
@@ -1009,6 +1014,7 @@ fn parse_stmt<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<Stmt, Parse
 	{
 		Some(&Token::If) => parse_if(input),
 		Some(&Token::While) => parse_while(input),
+		Some(&Token::Thread) => parse_thread(input),
 		Some(&Token::Break) =>
 		{
 			input.next();

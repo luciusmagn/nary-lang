@@ -1,5 +1,6 @@
 // TODO figure out the mess with getting function name in closure
 
+use std::mem;
 use std::any::Any;
 use std::boxed::Box;
 
@@ -34,12 +35,12 @@ impl<'a, A, T, U, V, W, X, Y, Z> FnRegister<A, Z, (&'a mut T, U, V, W, X, Y)> fo
 		                                                                   arg4: &mut Box<(Any + Sync)>,
 		                                                                   arg5: &mut Box<(Any + Sync)>,
 		                                                                   arg6: &mut Box<(Any + Sync)>| {
-			let arg1_b: Box<Any> = *arg1;
-			let arg2_b: Box<Any> = *arg2;
-			let arg3_b: Box<Any> = *arg3;
-			let arg4_b: Box<Any> = *arg4;
-			let arg5_b: Box<Any> = *arg5;
-			let arg6_b: Box<Any> = *arg6; 
+			let mut arg1_b: Box<Any> = unsafe { mem::transmute_copy(arg1) };
+			let mut arg2_b: Box<Any> = unsafe { mem::transmute_copy(arg2) };
+			let mut arg3_b: Box<Any> = unsafe { mem::transmute_copy(arg3) };
+			let mut arg4_b: Box<Any> = unsafe { mem::transmute_copy(arg4) };
+			let mut arg5_b: Box<Any> = unsafe { mem::transmute_copy(arg5) };
+			let mut arg6_b: Box<Any> = unsafe { mem::transmute_copy(arg6) }; 
 
 			let inside1 = (*arg1_b).downcast_mut() as Option<&mut T>;
 			let inside2 = (*arg2_b).downcast_mut() as Option<&mut U>;
@@ -88,12 +89,12 @@ impl<'a, A, T, U, V, W, X, Y, Z> FnRegister<A, Z, (&'a T, U, V, W, X, Y)> for En
 		                                                                   arg5: &mut Box<(Any + Sync)>,
 		                                                                   arg6: &mut Box<(Any + Sync)>| {
 
-			let arg1_b: Box<Any> = *arg1;
-			let arg2_b: Box<Any> = *arg2;
-			let arg3_b: Box<Any> = *arg3;
-			let arg4_b: Box<Any> = *arg4;
-			let arg5_b: Box<Any> = *arg5;
-			let arg6_b: Box<Any> = *arg6; 
+			let mut arg1_b: Box<Any> = unsafe { mem::transmute_copy(arg1) };
+			let mut arg2_b: Box<Any> = unsafe { mem::transmute_copy(arg2) };
+			let mut arg3_b: Box<Any> = unsafe { mem::transmute_copy(arg3) };
+			let mut arg4_b: Box<Any> = unsafe { mem::transmute_copy(arg4) };
+			let mut arg5_b: Box<Any> = unsafe { mem::transmute_copy(arg5) };
+			let mut arg6_b: Box<Any> = unsafe { mem::transmute_copy(arg6) }; 
 			
 			let inside1 = (*arg1_b).downcast_mut() as Option<&mut T>;
 			let inside2 = (*arg2_b).downcast_mut() as Option<&mut U>;
@@ -143,11 +144,11 @@ impl<'a, A, T, U, V, W, X, Y> FnRegister<A, Y, (&'a mut T, U, V, W, X)> for Engi
 		                                                                   arg3: &mut Box<(Any + Sync)>,
 		                                                                   arg4: &mut Box<(Any + Sync)>,
 		                                                                   arg5: &mut Box<(Any + Sync)>| {
-			let arg1_b: Box<Any> = *arg1;
-			let arg2_b: Box<Any> = *arg2;
-			let arg3_b: Box<Any> = *arg3;
-			let arg4_b: Box<Any> = *arg4;
-			let arg5_b: Box<Any> = *arg5;
+			let mut arg1_b: Box<Any> = unsafe { mem::transmute_copy(arg1) };
+			let mut arg2_b: Box<Any> = unsafe { mem::transmute_copy(arg2) };
+			let mut arg3_b: Box<Any> = unsafe { mem::transmute_copy(arg3) };
+			let mut arg4_b: Box<Any> = unsafe { mem::transmute_copy(arg4) };
+			let mut arg5_b: Box<Any> = unsafe { mem::transmute_copy(arg5) };
 			
 			let inside1 = (*arg1_b).downcast_mut() as Option<&mut T>;
 			let inside2 = (*arg2_b).downcast_mut() as Option<&mut U>;
@@ -191,11 +192,11 @@ impl<'a, A, T, U, V, W, X, Y> FnRegister<A, Y, (&'a T, U, V, W, X)> for Engine
 		                                                                   arg3: &mut Box<(Any + Sync)>,
 		                                                                   arg4: &mut Box<(Any + Sync)>,
 		                                                                   arg5: &mut Box<(Any + Sync)>| {
-			let arg1_b: Box<Any> = *arg1;
-			let arg2_b: Box<Any> = *arg2;
-			let arg3_b: Box<Any> = *arg3;
-			let arg4_b: Box<Any> = *arg4;
-			let arg5_b: Box<Any> = *arg5;
+			let mut arg1_b: Box<Any> = unsafe { mem::transmute_copy(arg1) };
+			let mut arg2_b: Box<Any> = unsafe { mem::transmute_copy(arg2) };
+			let mut arg3_b: Box<Any> = unsafe { mem::transmute_copy(arg3) };
+			let mut arg4_b: Box<Any> = unsafe { mem::transmute_copy(arg4) };
+			let mut arg5_b: Box<Any> = unsafe { mem::transmute_copy(arg5) };
 
 			let inside1 = (*arg1_b).downcast_mut() as Option<&mut T>;
 			let inside2 = (*arg2_b).downcast_mut() as Option<&mut U>;
@@ -230,10 +231,10 @@ impl<'a, A, T, U, V, W, X> FnRegister<A, X, (&'a mut T, U, V, W)> for Engine
 	{
 		let wrapped: Box<Fn(&mut Box<(Any + Sync)>, &mut Box<(Any + Sync)>, &mut Box<(Any + Sync)>, &mut Box<(Any + Sync)>) -> Result<Box<(Any + Sync)>, EvalAltResult>> =
 			Box::new(move |arg1: &mut Box<(Any + Sync)>, arg2: &mut Box<(Any + Sync)>, arg3: &mut Box<(Any + Sync)>, arg4: &mut Box<(Any + Sync)>| {
-				let arg1_b: Box<Any> = *arg1;
-				let arg2_b: Box<Any> = *arg2;
-				let arg3_b: Box<Any> = *arg3;
-				let arg4_b: Box<Any> = *arg4;
+				let mut arg1_b: Box<Any> = unsafe { mem::transmute_copy(arg1) };
+				let mut arg2_b: Box<Any> = unsafe { mem::transmute_copy(arg2) };
+				let mut arg3_b: Box<Any> = unsafe { mem::transmute_copy(arg3) };
+				let mut arg4_b: Box<Any> = unsafe { mem::transmute_copy(arg4) };
 			
 				let inside1 = (*arg1_b).downcast_mut() as Option<&mut T>;
 				let inside2 = (*arg2_b).downcast_mut() as Option<&mut U>;
@@ -264,10 +265,10 @@ impl<'a, A, T, U, V, W, X> FnRegister<A, X, (&'a T, U, V, W)> for Engine
 	{
 		let wrapped: Box<Fn(&mut Box<(Any + Sync)>, &mut Box<(Any + Sync)>, &mut Box<(Any + Sync)>, &mut Box<(Any + Sync)>) -> Result<Box<(Any + Sync)>, EvalAltResult>> =
 			Box::new(move |arg1: &mut Box<(Any + Sync)>, arg2: &mut Box<(Any + Sync)>, arg3: &mut Box<(Any + Sync)>, arg4: &mut Box<(Any + Sync)>| {
-				let arg1_b: Box<Any> = *arg1;
-				let arg2_b: Box<Any> = *arg2;
-				let arg3_b: Box<Any> = *arg3;
-				let arg4_b: Box<Any> = *arg4;
+				let mut arg1_b: Box<Any> = unsafe { mem::transmute_copy(arg1) };
+				let mut arg2_b: Box<Any> = unsafe { mem::transmute_copy(arg2) };
+				let mut arg3_b: Box<Any> = unsafe { mem::transmute_copy(arg3) };
+				let mut arg4_b: Box<Any> = unsafe { mem::transmute_copy(arg4) };
 
 				let inside1 = (*arg1_b).downcast_mut() as Option<&mut T>;
 				let inside2 = (*arg2_b).downcast_mut() as Option<&mut U>;
@@ -300,9 +301,9 @@ impl<'a, A, T, U, V, W> FnRegister<A, W, (&'a mut T, U, V)> for Engine
 	{
 		let wrapped: Box<Fn(&mut Box<(Any + Sync)>, &mut Box<(Any + Sync)>, &mut Box<(Any + Sync)>) -> Result<Box<(Any + Sync)>, EvalAltResult>> =
 			Box::new(move |arg1: &mut Box<(Any + Sync)>, arg2: &mut Box<(Any + Sync)>, arg3: &mut Box<(Any + Sync)>| {
-				let arg1_b: Box<Any> = *arg1;
-				let arg2_b: Box<Any> = *arg2;
-				let arg3_b: Box<Any> = *arg3;
+				let mut arg1_b: Box<Any> = unsafe { mem::transmute_copy(arg1) };
+				let mut arg2_b: Box<Any> = unsafe { mem::transmute_copy(arg2) };
+				let mut arg3_b: Box<Any> = unsafe { mem::transmute_copy(arg3) };
 
 				let inside1 = (*arg1_b).downcast_mut() as Option<&mut T>;
 				let inside2 = (*arg2_b).downcast_mut() as Option<&mut U>;
@@ -331,9 +332,9 @@ impl<'a, A, T, U, V, W> FnRegister<A, W, (&'a T, U, V)> for Engine
 	{
 		let wrapped: Box<Fn(&mut Box<(Any + Sync)>, &mut Box<(Any + Sync)>, &mut Box<(Any + Sync)>) -> Result<Box<(Any + Sync)>, EvalAltResult>> =
 			Box::new(move |arg1: &mut Box<(Any + Sync)>, arg2: &mut Box<(Any + Sync)>, arg3: &mut Box<(Any + Sync)>| {
-				let arg1_b: Box<Any> = *arg1;
-				let arg2_b: Box<Any> = *arg2;
-				let arg3_b: Box<Any> = *arg3;
+				let mut arg1_b: Box<Any> = unsafe { mem::transmute_copy(arg1) };
+				let mut arg2_b: Box<Any> = unsafe { mem::transmute_copy(arg2) };
+				let mut arg3_b: Box<Any> = unsafe { mem::transmute_copy(arg3) };
 
 				let inside1 = (*arg1_b).downcast_mut() as Option<&mut T>;
 				let inside2 = (*arg2_b).downcast_mut() as Option<&mut U>;
@@ -361,8 +362,8 @@ impl<'a, A, T, U, V> FnRegister<A, V, (&'a mut T, U)> for Engine
 	{
 		let wrapped: Box<Fn(&mut Box<(Any + Sync)>, &mut Box<(Any + Sync)>) -> Result<Box<(Any + Sync)>, EvalAltResult>> =
 			Box::new(move |arg1: &mut Box<(Any + Sync)>, arg2: &mut Box<(Any + Sync)>| {
-				let arg1_b: Box<Any> = *arg1;
-				let arg2_b: Box<Any> = *arg2;
+				let mut arg1_b: Box<Any> = unsafe { mem::transmute_copy(arg1) };
+				let mut arg2_b: Box<Any> = unsafe { mem::transmute_copy(arg2) };
 				
 				let inside1 = (*arg1_b).downcast_mut() as Option<&mut T>;
 				let inside2 = (*arg2_b).downcast_mut() as Option<&mut U>;
@@ -389,8 +390,8 @@ impl<'a, A, T, U, V> FnRegister<A, V, (&'a T, U)> for Engine
 	{
 		let wrapped: Box<Fn(&mut Box<(Any + Sync)>, &mut Box<(Any + Sync)>) -> Result<Box<(Any + Sync)>, EvalAltResult>> =
 			Box::new(move |arg1: &mut Box<(Any + Sync)>, arg2: &mut Box<(Any + Sync)>| {
-				let arg1_b: Box<Any> = *arg1;
-				let arg2_b: Box<Any> = *arg2;
+				let mut arg1_b: Box<Any> = unsafe { mem::transmute_copy(arg1) };
+				let mut arg2_b: Box<Any> = unsafe { mem::transmute_copy(arg2) };
 
 				let inside1 = (*arg1_b).downcast_mut() as Option<&mut T>;
 				let inside2 = (*arg2_b).downcast_mut() as Option<&mut U>;
@@ -415,7 +416,7 @@ impl<'a, A, T, U> FnRegister<A, U, (&'a mut T)> for Engine
 	fn register_fn(&mut self, name: &str, fun: A)
 	{
 		let wrapped: Box<Fn(&mut Box<(Any + Sync)>) -> Result<Box<(Any + Sync)>, EvalAltResult>> = Box::new(move |arg: &mut Box<(Any + Sync)>| {
-			let arg_b: Box<Any> = *arg;
+			let mut arg_b: Box<Any> = unsafe { mem::transmute_copy(arg) };
 			let inside = (*arg_b).downcast_mut() as Option<&mut T>;
 			match inside
 			{
@@ -438,7 +439,7 @@ impl<'a, A, T, U> FnRegister<A, U, (&'a T)> for Engine
 	fn register_fn(&mut self, name: &str, fun: A)
 	{
 		let wrapped: Box<Fn(&mut Box<(Any + Sync)>) -> Result<Box<(Any + Sync)>, EvalAltResult>> = Box::new(move |arg: &mut Box<(Any + Sync)>| {
-			let arg_b: Box<Any> = *arg;
+			let mut arg_b: Box<Any> = unsafe { mem::transmute_copy(arg) };
 			let inside = (*arg_b).downcast_mut() as Option<&mut T>;
 			match inside
 			{

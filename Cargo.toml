@@ -13,6 +13,10 @@ include = [
     "Cargo.toml"
 ]
 
+[profile.dev]
+opt-level = 0
+debug = true
+debug-assertions = true
 
 [features]
 default = ["stdlib"]

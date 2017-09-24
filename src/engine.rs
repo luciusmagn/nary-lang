@@ -2,9 +2,9 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::any::Any;
 use std::boxed::Box;
-use std::io::Write;
 use std::thread;
 use std::fmt;
+use std::mem;
 
 use parser::{lex, parse, Expr, Stmt, FnDef};
 use fn_register::FnRegister;
@@ -13,7 +13,9 @@ use std::ops::{Add, Sub, Mul, Div, Rem};
 use std::cmp::{Ord, Eq};
 
 /* EVIL MAGIC HERE */
-
+use std::marker::Send;
+unsafe impl Send for Engine {}
+unsafe impl Sync for Engine {}
 /* END OF EVIL MAGIC */
 
 pub enum EvalAltResult
@@ -61,7 +63,7 @@ impl fmt::Display for EvalAltResult
 	{
 		match *self
 		{
-			EvalAltResult::ErrorFunctionNotFound(ref n) => write!(f, "Function not found: {}", n),
+			EvalAltResult::ErrorFunctionNotFound(ref n) => write!(f, "Function not found: {:?}", n),
 			EvalAltResult::ErrorFunctionArgMismatch(ref n) => write!(f, "Function argument types do not match: {}", n),
 			EvalAltResult::ErrorFunctionCallNotSupported => write!(f, "Function call with > 2 argument not supported"),
 			EvalAltResult::ErrorIndexMismatch => write!(f, "Index does not match array"),
@@ -108,6 +110,8 @@ pub struct Engine
 	pub threads: u64,
 }
 
+//pub trait AnySafeClone: Any + Clone + Sync {}
+//impl<T> AnySafeClone for T where T: Any + Clone + Sync {}
 // TODO split threads from other stuff
 pub type Scope = Vec<(String, Box<(Any + Sync)>)>;
 
@@ -586,12 +590,12 @@ impl Engine
 
 				let get_fn_name = "get$".to_string() + id;
 
-				if let Ok(mut val) = self.call_fn(&get_fn_name, Some(this_ptr), None, None, None, None, None)
+				if let Ok(val) = self.call_fn(&get_fn_name, Some(this_ptr), None, None, None, None, None)
 				{
 					let d: Box<Any> = idx;
 					if let Ok(i) = d.downcast::<i64>()
 					{
-						let val_b: Box<Any> = val;
+						let mut val_b: Box<Any> = val;
 						if let Some(arr_typed) = (*val_b).downcast_mut() as Option<&mut Vec<Box<(Any + Sync)>>>
 						{
 							return self.call_fn("clone",
@@ -701,7 +705,7 @@ impl Engine
 				{
 					if *id == *name
 					{
-						let mut val_b: Box<Any> = *val;
+						let mut val_b: Box<Any> = unsafe { mem::transmute_copy(val) };
 						if let Some(arr_typed) = (*val_b).downcast_mut() as Option<&mut Vec<Box<(Any + Sync)>>>
 						{
 							let result = self.call_fn("clone",
@@ -736,7 +740,7 @@ impl Engine
 					{
 						if *id == *name
 						{
-							let mut val_b: Box<Any> = *val;
+							let mut val_b: Box<Any> = unsafe { mem::transmute_copy(val) };
 							if let Some(arr_typed) = (*val_b).downcast_mut() as Option<&mut Vec<Box<(Any + Sync)>>>
 							{
 								arr_typed[*idx as usize] = t;
@@ -862,7 +866,7 @@ impl Engine
 			Expr::Index(ref id, ref idx_raw) =>
 			{
 				let idx_boxed = self.eval_expr(scope, idx_raw)?;
-				let mut idx_b: Box<Any> = idx_boxed;
+				let idx_b: Box<Any> = idx_boxed;
 				let idx = if let Ok(i) = idx_b.downcast::<i64>()
 				{
 					i
@@ -878,7 +882,7 @@ impl Engine
 				{
 					if *id == *name
 					{
-						let mut val_b: Box<Any> = *val;
+						let mut val_b: Box<Any> = unsafe { mem::transmute_copy(val) };
 						if let Some(arr_typed) = (*val_b).downcast_mut() as Option<&mut Vec<Box<(Any + Sync)>>>
 						{
 							let result = self.call_fn("clone",
@@ -913,7 +917,7 @@ impl Engine
 					{
 						if *id == *name
 						{
-							let mut val_b: Box<Any> = *val;
+							let mut val_b: Box<Any> = unsafe { mem::transmute_copy(val) };
 							if let Some(arr_typed) = (*val_b).downcast_mut() as Option<&mut Vec<Box<(Any + Sync)>>>
 							{
 								arr_typed[*idx as usize] = t;
@@ -956,10 +960,10 @@ impl Engine
 				{
 					if *id == *name
 					{
-						let mut idx_b: Box<Any> = idx;
+						let idx_b: Box<Any> = idx;
 						if let Ok(i) = idx_b.downcast::<i64>()
 						{
-							let mut val_b: Box<Any> = *val;
+							let mut val_b: Box<Any> = unsafe { mem::transmute_copy(val) };
 							if let Some(arr_typed) = (*val_b).downcast_mut() as Option<&mut Vec<Box<(Any + Sync)>>>
 							{
 								return self.call_fn("clone",
@@ -1012,10 +1016,10 @@ impl Engine
 						{
 							if *id == *name
 							{
-								let mut idx_b: Box<Any> = idx;
+								let idx_b: Box<Any> = idx;
 								if let Ok(i) = idx_b.downcast::<i64>()
 								{
-									let mut val_b: Box<Any> = *val;
+									let mut val_b: Box<Any> = unsafe { mem::transmute_copy(val) };
 									if let Some(arr_typed) = (*val_b).downcast_mut() as Option<&mut Vec<Box<(Any + Sync)>>>
 									{
 										arr_typed[*i as usize] = rhs_val;
@@ -1183,7 +1187,7 @@ impl Engine
 			Stmt::If(ref guard, ref body) =>
 			{
 				let guard_result = self.eval_expr(scope, guard)?;
-				let mut guard_result_b: Box<Any> = guard_result;
+				let guard_result_b: Box<Any> = guard_result;
 				match guard_result_b.downcast::<bool>()
 				{
 					Ok(g) =>
@@ -1222,14 +1226,17 @@ impl Engine
 			},
 			Stmt::Thread(ref name, ref body) =>
 			{
+				println!("wtf am I doing here");
 				let name = if let &Some(ref n) = name {n.clone()} else {
 				    "nameless".to_string() + &self.threads.to_string()
 				};
 				let body = body.clone();
 				let tr = thread::spawn(
-					||
+					move ||
 					{
-						self.eval_stmt(&mut Scope::new(), &Stmt::Block(Box::new(Vec::new())));
+						// TODO handle any errors appearing thread properly
+						let new_engine = Engine::new();
+						let _ =new_engine.eval_stmt(&mut Scope::new(), &*body);
 					}
 				);
 

@@ -24,10 +24,12 @@ fn main()
 		engine.register_fn("print", showit as fn(x: &mut bool) -> ());
 		engine.register_fn("print", showit as fn(x: &mut String) -> ());
 
+		println!("fuckup 1");
 		match engine.eval_file::<()>(&fname)
 		{
 			Ok(_) => (),
 			Err(e) => println!("Error: {}", e),
 		}
+		println!("fuckup 2");
 	}
 }

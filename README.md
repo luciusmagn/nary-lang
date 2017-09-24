@@ -135,3 +135,5 @@ var name = "Bob";
 var middle_initial = 'C';
 ```
 
+# Known Bugs
+* print("fun: \u2764 and \U0001F603"); produces a UB, I don't know why
