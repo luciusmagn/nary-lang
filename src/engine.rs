@@ -2,6 +2,8 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::any::Any;
 use std::boxed::Box;
+use std::io::Write;
+use std::thread;
 use std::fmt;
 
 use parser::{lex, parse, Expr, Stmt, FnDef};
@@ -10,7 +12,10 @@ use fn_register::FnRegister;
 use std::ops::{Add, Sub, Mul, Div, Rem};
 use std::cmp::{Ord, Eq};
 
-#[derive(Debug)]
+/* EVIL MAGIC HERE */
+
+/* END OF EVIL MAGIC */
+
 pub enum EvalAltResult
 {
 	ErrorFunctionNotFound(String),
@@ -25,9 +30,17 @@ pub enum EvalAltResult
 	ErrorCantOpenScriptFile,
 	InternalErrorMalformedDotExpression,
 	LoopBreak,
-	Return(Box<Any>),
+	Return(Box<(Any + Sync)>),
 }
 
+// TODO
+impl fmt::Debug for EvalAltResult
+{
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
+	{
+		write!(f, "pain and suffering ;-;")
+	}
+}
 
 impl Error for EvalAltResult
 {
@@ -67,24 +80,24 @@ impl fmt::Display for EvalAltResult
 
 pub enum FnType
 {
-	ExternalFn0(Box<Fn() -> Result<Box<Any>, EvalAltResult>>),
-	ExternalFn1(Box<Fn(&mut Box<Any>) -> Result<Box<Any>, EvalAltResult>>),
-	ExternalFn2(Box<Fn(&mut Box<Any>, &mut Box<Any>) -> Result<Box<Any>, EvalAltResult>>),
-	ExternalFn3(Box<Fn(&mut Box<Any>, &mut Box<Any>, &mut Box<Any>) -> Result<Box<Any>, EvalAltResult>>),
-	ExternalFn4(Box<Fn(&mut Box<Any>, &mut Box<Any>, &mut Box<Any>, &mut Box<Any>) -> Result<Box<Any>, EvalAltResult>>),
-	ExternalFn5(Box<Fn(&mut Box<Any>,
-	                    &mut Box<Any>,
-	                    &mut Box<Any>,
-	                    &mut Box<Any>,
-	                    &mut Box<Any>)
-	                    -> Result<Box<Any>, EvalAltResult>>),
-	ExternalFn6(Box<Fn(&mut Box<Any>,
-	                    &mut Box<Any>,
-	                    &mut Box<Any>,
-	                    &mut Box<Any>,
-	                    &mut Box<Any>,
-	                    &mut Box<Any>)
-	                    -> Result<Box<Any>, EvalAltResult>>),
+	ExternalFn0(Box<Fn() -> Result<Box<(Any + Sync)>, EvalAltResult>>),
+	ExternalFn1(Box<Fn(&mut Box<(Any + Sync)>) -> Result<Box<(Any + Sync)>, EvalAltResult>>),
+	ExternalFn2(Box<Fn(&mut Box<(Any + Sync)>, &mut Box<(Any + Sync)>) -> Result<Box<(Any + Sync)>, EvalAltResult>>),
+	ExternalFn3(Box<Fn(&mut Box<(Any + Sync)>, &mut Box<(Any + Sync)>, &mut Box<(Any + Sync)>) -> Result<Box<(Any + Sync)>, EvalAltResult>>),
+	ExternalFn4(Box<Fn(&mut Box<(Any + Sync)>, &mut Box<(Any + Sync)>, &mut Box<(Any + Sync)>, &mut Box<(Any + Sync)>) -> Result<Box<(Any + Sync)>, EvalAltResult>>),
+	ExternalFn5(Box<Fn(&mut Box<(Any + Sync)>,
+	                    &mut Box<(Any + Sync)>,
+	                    &mut Box<(Any + Sync)>,
+	                    &mut Box<(Any + Sync)>,
+	                    &mut Box<(Any + Sync)>)
+	                    -> Result<Box<(Any + Sync)>, EvalAltResult>>),
+	ExternalFn6(Box<Fn(&mut Box<(Any + Sync)>,
+	                    &mut Box<(Any + Sync)>,
+	                    &mut Box<(Any + Sync)>,
+	                    &mut Box<(Any + Sync)>,
+	                    &mut Box<(Any + Sync)>,
+	                    &mut Box<(Any + Sync)>)
+	                    -> Result<Box<(Any + Sync)>, EvalAltResult>>),
 
 	InternalFn(FnDef),
 }
@@ -92,21 +105,23 @@ pub enum FnType
 pub struct Engine
 {
 	pub fns: HashMap<String, Vec<FnType>>,
+	pub threads: u64,
 }
 
-pub type Scope = Vec<(String, Box<Any>)>;
+// TODO split threads from other stuff
+pub type Scope = Vec<(String, Box<(Any + Sync)>)>;
 
 impl Engine
 {
 	fn call_fn(&self,
 	           name: &str,
-	           arg1: Option<&mut Box<Any>>,
-	           arg2: Option<&mut Box<Any>>,
-	           arg3: Option<&mut Box<Any>>,
-	           arg4: Option<&mut Box<Any>>,
-	           arg5: Option<&mut Box<Any>>,
-	           arg6: Option<&mut Box<Any>>)
-	           -> Result<Box<Any>, EvalAltResult>
+	           arg1: Option<&mut Box<(Any + Sync)>>,
+	           arg2: Option<&mut Box<(Any + Sync)>>,
+	           arg3: Option<&mut Box<(Any + Sync)>>,
+	           arg4: Option<&mut Box<(Any + Sync)>>,
+	           arg5: Option<&mut Box<(Any + Sync)>>,
+	           arg6: Option<&mut Box<(Any + Sync)>>)
+	           -> Result<Box<(Any + Sync)>, EvalAltResult>
 	{
 
 		match self.fns.get(name)
@@ -443,7 +458,7 @@ impl Engine
 		}
 	}
 
-	pub fn register_type<T: Clone + Any>(&mut self)
+	pub fn register_type<T: Clone + Any + Sync>(&mut self)
 	{
 		fn clone_helper<T: Clone>(t: T) -> T
 		{
@@ -453,21 +468,21 @@ impl Engine
 		self.register_fn("clone", clone_helper as fn(T) -> T);
 	}
 
-	pub fn register_get<T: Clone + Any, U: Clone + Any, F>(&mut self, name: &str, get_fn: F)
+	pub fn register_get<T: Clone + Any + Sync, U: Clone + Any + Sync, F>(&mut self, name: &str, get_fn: F)
 		where F: 'static + Fn(&mut T) -> U
 	{
 		let get_name = "get$".to_string() + name;
 		self.register_fn(&get_name, get_fn);
 	}
 
-	pub fn register_set<T: Clone + Any, U: Clone + Any, F>(&mut self, name: &str, set_fn: F)
+	pub fn register_set<T: Clone + Any + Sync, U: Clone + Any + Sync, F>(&mut self, name: &str, set_fn: F)
 		where F: 'static + Fn(&mut T, U) -> ()
 	{
 		let set_name = "set$".to_string() + name;
 		self.register_fn(&set_name, set_fn);
 	}
 
-	pub fn register_get_set<T: Clone + Any, U: Clone + Any, F, G>(&mut self, name: &str, get_fn: F, set_fn: G)
+	pub fn register_get_set<T: Clone + Any + Sync, U: Clone + Any + Sync, F, G>(&mut self, name: &str, get_fn: F, set_fn: G)
 		where F: 'static + Fn(&mut T) -> U,
 		      G: 'static + Fn(&mut T, U) -> ()
 	{
@@ -475,7 +490,7 @@ impl Engine
 		self.register_set(name, set_fn);
 	}
 
-	fn get_dot_val_helper(&self, scope: &mut Scope, this_ptr: &mut Box<Any>, dot_rhs: &Expr) -> Result<Box<Any>, EvalAltResult>
+	fn get_dot_val_helper(&self, scope: &mut Scope, this_ptr: &mut Box<(Any + Sync)>, dot_rhs: &Expr) -> Result<Box<(Any + Sync)>, EvalAltResult>
 	{
 		match *dot_rhs
 		{
@@ -573,9 +588,11 @@ impl Engine
 
 				if let Ok(mut val) = self.call_fn(&get_fn_name, Some(this_ptr), None, None, None, None, None)
 				{
-					if let Ok(i) = idx.downcast::<i64>()
+					let d: Box<Any> = idx;
+					if let Ok(i) = d.downcast::<i64>()
 					{
-						if let Some(arr_typed) = (*val).downcast_mut() as Option<&mut Vec<Box<Any>>>
+						let val_b: Box<Any> = val;
+						if let Some(arr_typed) = (*val_b).downcast_mut() as Option<&mut Vec<Box<(Any + Sync)>>>
 						{
 							return self.call_fn("clone",
 							                    Some(&mut arr_typed[*i as usize]),
@@ -622,13 +639,13 @@ impl Engine
 		}
 	}
 
-	fn get_dot_val(&self, scope: &mut Scope, dot_lhs: &Expr, dot_rhs: &Expr) -> Result<Box<Any>, EvalAltResult>
+	fn get_dot_val(&self, scope: &mut Scope, dot_lhs: &Expr, dot_rhs: &Expr) -> Result<Box<(Any + Sync)>, EvalAltResult>
 	{
 		match *dot_lhs
 		{
 			Expr::Identifier(ref id) =>
 			{
-				let mut target: Option<Box<Any>> = None;
+				let mut target: Option<Box<(Any + Sync)>> = None;
 
 				for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev()
 				{
@@ -668,7 +685,8 @@ impl Engine
 			Expr::Index(ref id, ref idx_raw) =>
 			{
 				let idx_boxed = self.eval_expr(scope, idx_raw)?;
-				let idx = if let Ok(i) = idx_boxed.downcast::<i64>()
+				let idx_b: Box<Any> = idx_boxed;
+				let idx = if let Ok(i) = idx_b.downcast::<i64>()
 				{
 					i
 				}
@@ -677,13 +695,14 @@ impl Engine
 					return Err(EvalAltResult::ErrorIndexMismatch);
 				};
 
-				let mut target: Option<Box<Any>> = None;
+				let mut target: Option<Box<(Any + Sync)>> = None;
 
 				for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev()
 				{
 					if *id == *name
 					{
-						if let Some(arr_typed) = (*val).downcast_mut() as Option<&mut Vec<Box<Any>>>
+						let mut val_b: Box<Any> = *val;
+						if let Some(arr_typed) = (*val_b).downcast_mut() as Option<&mut Vec<Box<(Any + Sync)>>>
 						{
 							let result = self.call_fn("clone",
 							                          Some(&mut arr_typed[*idx as usize]),
@@ -717,7 +736,8 @@ impl Engine
 					{
 						if *id == *name
 						{
-							if let Some(arr_typed) = (*val).downcast_mut() as Option<&mut Vec<Box<Any>>>
+							let mut val_b: Box<Any> = *val;
+							if let Some(arr_typed) = (*val_b).downcast_mut() as Option<&mut Vec<Box<(Any + Sync)>>>
 							{
 								arr_typed[*idx as usize] = t;
 								break;
@@ -734,10 +754,10 @@ impl Engine
 	}
 
 	fn set_dot_val_helper(&self,
-	                      this_ptr: &mut Box<Any>,
+	                      this_ptr: &mut Box<(Any + Sync)>,
 	                      dot_rhs: &Expr,
-	                      mut source_val: Box<Any>)
-	                      -> Result<Box<Any>, EvalAltResult>
+	                      mut source_val: Box<(Any + Sync)>)
+	                      -> Result<Box<(Any + Sync)>, EvalAltResult>
 	{
 		match *dot_rhs
 		{
@@ -797,14 +817,14 @@ impl Engine
 	               scope: &mut Scope,
 	               dot_lhs: &Expr,
 	               dot_rhs: &Expr,
-	               source_val: Box<Any>)
-	               -> Result<Box<Any>, EvalAltResult>
+	               source_val: Box<(Any + Sync)>)
+	               -> Result<Box<(Any + Sync)>, EvalAltResult>
 	{
 		match *dot_lhs
 		{
 			Expr::Identifier(ref id) =>
 			{
-				let mut target: Option<Box<Any>> = None;
+				let mut target: Option<Box<(Any + Sync)>> = None;
 
 				for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev()
 				{
@@ -842,7 +862,8 @@ impl Engine
 			Expr::Index(ref id, ref idx_raw) =>
 			{
 				let idx_boxed = self.eval_expr(scope, idx_raw)?;
-				let idx = if let Ok(i) = idx_boxed.downcast::<i64>()
+				let mut idx_b: Box<Any> = idx_boxed;
+				let idx = if let Ok(i) = idx_b.downcast::<i64>()
 				{
 					i
 				}
@@ -851,13 +872,14 @@ impl Engine
 					return Err(EvalAltResult::ErrorIndexMismatch);
 				};
 
-				let mut target: Option<Box<Any>> = None;
+				let mut target: Option<Box<(Any + Sync)>> = None;
 
 				for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev()
 				{
 					if *id == *name
 					{
-						if let Some(arr_typed) = (*val).downcast_mut() as Option<&mut Vec<Box<Any>>>
+						let mut val_b: Box<Any> = *val;
+						if let Some(arr_typed) = (*val_b).downcast_mut() as Option<&mut Vec<Box<(Any + Sync)>>>
 						{
 							let result = self.call_fn("clone",
 							                          Some(&mut arr_typed[*idx as usize]),
@@ -891,7 +913,8 @@ impl Engine
 					{
 						if *id == *name
 						{
-							if let Some(arr_typed) = (*val).downcast_mut() as Option<&mut Vec<Box<Any>>>
+							let mut val_b: Box<Any> = *val;
+							if let Some(arr_typed) = (*val_b).downcast_mut() as Option<&mut Vec<Box<(Any + Sync)>>>
 							{
 								arr_typed[*idx as usize] = t;
 								break;
@@ -907,7 +930,7 @@ impl Engine
 		}
 	}
 
-	fn eval_expr(&self, scope: &mut Scope, expr: &Expr) -> Result<Box<Any>, EvalAltResult>
+	fn eval_expr(&self, scope: &mut Scope, expr: &Expr) -> Result<Box<(Any + Sync)>, EvalAltResult>
 	{
 		match *expr
 		{
@@ -933,9 +956,11 @@ impl Engine
 				{
 					if *id == *name
 					{
-						if let Ok(i) = idx.downcast::<i64>()
+						let mut idx_b: Box<Any> = idx;
+						if let Ok(i) = idx_b.downcast::<i64>()
 						{
-							if let Some(arr_typed) = (*val).downcast_mut() as Option<&mut Vec<Box<Any>>>
+							let mut val_b: Box<Any> = *val;
+							if let Some(arr_typed) = (*val_b).downcast_mut() as Option<&mut Vec<Box<(Any + Sync)>>>
 							{
 								return self.call_fn("clone",
 								                    Some(&mut arr_typed[*i as usize]),
@@ -987,9 +1012,11 @@ impl Engine
 						{
 							if *id == *name
 							{
-								if let Ok(i) = idx.downcast::<i64>()
+								let mut idx_b: Box<Any> = idx;
+								if let Ok(i) = idx_b.downcast::<i64>()
 								{
-									if let Some(arr_typed) = (*val).downcast_mut() as Option<&mut Vec<Box<Any>>>
+									let mut val_b: Box<Any> = *val;
+									if let Some(arr_typed) = (*val_b).downcast_mut() as Option<&mut Vec<Box<(Any + Sync)>>>
 									{
 										arr_typed[*i as usize] = rhs_val;
 										return Ok(Box::new(()));
@@ -1122,7 +1149,7 @@ impl Engine
 		}
 	}
 
-	fn eval_stmt(&self, scope: &mut Scope, stmt: &Stmt) -> Result<Box<Any>, EvalAltResult>
+	fn eval_stmt(&self, scope: &mut Scope, stmt: &Stmt) -> Result<Box<(Any + Sync)>, EvalAltResult>
 	{
 		match *stmt
 		{
@@ -1130,7 +1157,7 @@ impl Engine
 			Stmt::Block(ref b) =>
 			{
 				let prev_len = scope.len();
-				let mut last_result: Result<Box<Any>, EvalAltResult> = Ok(Box::new(()));
+				let mut last_result: Result<Box<(Any + Sync)>, EvalAltResult> = Ok(Box::new(()));
 
 				for s in b.iter()
 				{
@@ -1156,7 +1183,8 @@ impl Engine
 			Stmt::If(ref guard, ref body) =>
 			{
 				let guard_result = self.eval_expr(scope, guard)?;
-				match guard_result.downcast::<bool>()
+				let mut guard_result_b: Box<Any> = guard_result;
+				match guard_result_b.downcast::<bool>()
 				{
 					Ok(g) =>
 					{
@@ -1175,7 +1203,8 @@ impl Engine
 			Stmt::IfElse(ref guard, ref body, ref else_body) =>
 			{
 				let guard_result = self.eval_expr(scope, guard)?;
-				match guard_result.downcast::<bool>()
+				let guard_result_b: Box<Any> = guard_result;
+				match guard_result_b.downcast::<bool>()
 				{
 					Ok(g) =>
 					{
@@ -1191,12 +1220,29 @@ impl Engine
 					Err(_) => Err(EvalAltResult::ErrorIfGuardMismatch),
 				}
 			},
+			Stmt::Thread(ref name, ref body) =>
+			{
+				let name = if let &Some(ref n) = name {n.clone()} else {
+				    "nameless".to_string() + &self.threads.to_string()
+				};
+				let body = body.clone();
+				let tr = thread::spawn(
+					||
+					{
+						self.eval_stmt(&mut Scope::new(), &Stmt::Block(Box::new(Vec::new())));
+					}
+				);
+
+				scope.push(("_thread_".to_string() + &name, Box::new(tr)));
+				Ok(Box::new(()))
+			}
 			Stmt::While(ref guard, ref body) =>
 			{
 				loop
 				{
 					let guard_result = self.eval_expr(scope, guard)?;
-					match guard_result.downcast::<bool>()
+					let guard_result_b: Box<Any> = guard_result;
+					match guard_result_b.downcast::<bool>()
 					{
 						Ok(g) =>
 						{
@@ -1292,7 +1338,7 @@ impl Engine
 		{
 			Ok((ref os, ref fns)) =>
 			{
-				let mut x: Result<Box<Any>, EvalAltResult> = Ok(Box::new(()));
+				let mut x: Result<Box<(Any + Sync)>, EvalAltResult> = Ok(Box::new(()));
 
 				for f in fns
 				{
@@ -1319,7 +1365,8 @@ impl Engine
 				{
 					Ok(v) =>
 					{
-						match v.downcast::<T>()
+						let v_b: Box<Any> = v;
+						match v_b.downcast::<T>()
 						{
 							Ok(out) => Ok(*out),
 							Err(_) => Err(EvalAltResult::ErrorMismatchOutputType),
@@ -1402,7 +1449,7 @@ impl Engine
 
 	pub fn new() -> Engine
 	{
-		let mut engine = Engine { fns: HashMap::new() };
+		let mut engine = Engine { fns: HashMap::new(), threads: 0 };
 
 		Engine::register_default_lib(&mut engine);
 

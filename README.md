@@ -19,6 +19,7 @@ In comparison to Rhai:
 * Slight changes to syntax
 * More verbose error logging (maybe?)
 * Optional tiny standard library
+* Basic multithreading
 
 **Note:** Nary is not exactly backwards compatible with Rhai.
 
