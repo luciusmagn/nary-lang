@@ -16,4 +16,11 @@ fn main()
 	{
 		println!("Answer: {}", result); // prints 42
 	}
+
+	let mut engine = Engine::new();
+
+	if let Ok(result) = engine.eval::<i64>("fn add(a, b) {a+b} add(40, 2)")
+	{
+		println!("Answer: {}", result); // prints 42
+	}
 }
