@@ -78,7 +78,7 @@ fn test_mismatched_op()
 
 	match engine.eval::<i64>("60 + \"hello\"")
 	{
-		Err(EvalAltResult::ErrorFunctionArgMismatch) => (),
+		Err(EvalAltResult::ErrorFunctionArgMismatch(_)) => (),
 		_ => assert!(false),
 	}
 }
@@ -181,7 +181,7 @@ fn test_while()
 fn test_var_scope()
 {
 	let mut engine = Engine::new();
-	let mut scope: Scope = Vec::new();
+	let mut scope: Scope = Scope::new();
 
 	if let Ok(_) = engine.eval_with_scope::<()>(&mut scope, "let x = 4 + 5")
 	{
