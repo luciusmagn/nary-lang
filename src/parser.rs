@@ -939,54 +939,43 @@ fn parse_var<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<Stmt, ParseE
 		_ => return Err(ParseError::VarExpectsIdentifier),
 	};
 
-	match input.peek()
+	if let Some(&Token::Equals) = input.peek()
 	{
-		Some(&Token::Equals) =>
-		{
-			input.next();
-			let initializer = parse_expr(input)?;
-			Ok(Stmt::Var(name, Some(Box::new(initializer))))
-		},
-		_ => Ok(Stmt::Var(name, None)),
-	}
+		input.next();
+		let initializer = parse_expr(input)?;
+		Ok(Stmt::Var(name, Some(Box::new(initializer))))
+	} else {Ok(Stmt::Var(name, None))}
 }
 
 fn parse_block<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<Stmt, ParseError>
 {
-	match input.peek()
-	{
-		Some(&Token::LCurly) => (),
-		_ => return Err(ParseError::MissingLCurly),
+	if let Some(&Token::LCurly) = input.peek()
+	{} else {
+		return Err(ParseError::MissingLCurly);
 	}
 
 	input.next();
 
 	let mut stmts = Vec::new();
 
-	let skip_body = match input.peek()
+	let skip_body = if let Some(&Token::RCurly) = input.peek()
 	{
-		Some(&Token::RCurly) => true,
-		_ => false,
-	};
+		true
+	} else {false};
 
 	if !skip_body
 	{
 		while let Some(_) = input.peek()
 		{
 			stmts.push(parse_stmt(input)?);
-			match input.peek()
+			if let Some(&Token::Semicolon) = input.peek()
 			{
-				Some(&Token::Semicolon) =>
-				{
-					input.next();
-				},
-				_ => (),
+				input.next();
 			}
 
-			match input.peek()
+			if let Some(&Token::RCurly) = input.peek()
 			{
-				Some(&Token::RCurly) => break,
-				_ => (),
+				break;
 			}
 		}
 	}
@@ -1023,14 +1012,14 @@ fn parse_stmt<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<Stmt, Parse
 		Some(&Token::Return) =>
 		{
 			input.next();
-			match input.peek()
+			if let Some(&Token::Semicolon) = input.peek()
 			{
-				Some(&Token::Semicolon) => Ok(Stmt::Return),
-				_ =>
-				{
-					let ret = parse_expr(input)?;
-					Ok(Stmt::ReturnWithVal(Box::new(ret)))
-				},
+				Ok(Stmt::Return)
+			}
+			else
+			{
+				let ret = parse_expr(input)?;
+				Ok(Stmt::ReturnWithVal(Box::new(ret)))
 			}
 		},
 		Some(&Token::LCurly) => parse_block(input),
@@ -1043,32 +1032,24 @@ fn parse_fn<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<FnDef, ParseE
 {
 	input.next();
 
-	let name = match input.next()
+	let name = if let Some(Token::Identifier(ref s)) = input.next()
 	{
-		Some(Token::Identifier(ref s)) => s.clone(),
-		_ => return Err(ParseError::FnMissingName),
-	};
-
-	match input.peek()
-	{
-		Some(&Token::LParen) =>
-		{
-			input.next();
-		},
-		_ => return Err(ParseError::FnMissingParams),
+		s.clone()
 	}
+	else {return Err(ParseError::FnMissingName)};
+
+	if let Some(&Token::LParen) = input.peek()
+	{
+		input.next();
+	} else {return Err(ParseError::FnMissingParams);}
 
 	let mut params = Vec::new();
 
-	let skip_params = match input.peek()
+	let skip_params = if let Some(&Token::RParen) = input.peek()
 	{
-		Some(&Token::RParen) =>
-		{
-			input.next();
-			true
-		},
-		_ => false,
-	};
+		input.next();
+		true
+	} else {false};
 
 	if !skip_params
 	{
@@ -1103,19 +1084,14 @@ fn parse_top_level<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<(Vec<S
 
 	while let Some(_) = input.peek()
 	{
-		match input.peek()
+		if let Some(&Token::Fn) = input.peek()
 		{
-			Some(&Token::Fn) => fndefs.push(try!(parse_fn(input))),
-			_ => stmts.push(try!(parse_stmt(input))),
-		}
+			fndefs.push(try!(parse_fn(input)));
+		} else {stmts.push(try!(parse_stmt(input)));}
 
-		match input.peek()
+		if let Some(&Token::Semicolon) = input.peek()
 		{
-			Some(&Token::Semicolon) =>
-			{
-				input.next();
-			},
-			_ => (),
+			input.next();
 		}
 	}
 
