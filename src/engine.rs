@@ -1,7 +1,8 @@
+use std::sync::{Mutex, Arc, MutexGuard};
 use std::collections::HashMap;
 use std::error::Error;
-use std::any::Any;
 use std::boxed::Box;
+use std::any::Any;
 use std::fmt;
 
 use parser::{lex, parse, Expr, Stmt, FnDef};
@@ -89,12 +90,36 @@ pub enum FnType
 	InternalFn(FnDef),
 }
 
+#[derive(Clone)]
 pub struct Engine
 {
-	pub fns: HashMap<String, Vec<FnType>>,
+	pub fns: ArcMutexMap,
 }
 
 pub type Scope = Vec<(String, Box<Any>)>;
+
+#[derive(Clone)]
+pub struct ArcMutexMap(Arc<Mutex<HashMap<String, Vec<FnType>>>>);
+
+impl ArcMutexMap
+{
+	fn new() -> Self
+	{
+		ArcMutexMap(
+			Arc::new(
+				Mutex::new(
+					HashMap::new(
+					)
+				)
+			)
+		)
+	}
+
+	pub fn ex(&self) -> MutexGuard<HashMap<String, Vec<FnType>>>
+	{
+		self.0.lock().unwrap()
+	}
+}
 
 impl Engine
 {
@@ -108,8 +133,8 @@ impl Engine
 	           arg6: Option<&mut Box<Any>>)
 	           -> Result<Box<Any>, EvalAltResult>
 	{
-
-		match self.fns.get(name)
+		let self_fns = self.fns.ex();
+		match self_fns.get(name)
 		{
 			Some(ref vf) =>
 			{
@@ -1302,7 +1327,8 @@ impl Engine
 					}
 					let name = f.name.clone();
 					let local_f = f.clone();
-					let ent = self.fns.entry(name).or_insert(Vec::new());
+					let mut self_fns = self.fns.ex();
+					let ent = self_fns.entry(name).or_insert(Vec::new());
 					(*ent).push(FnType::InternalFn(local_f));
 				}
 
@@ -1402,7 +1428,7 @@ impl Engine
 
 	pub fn new() -> Engine
 	{
-		let mut engine = Engine { fns: HashMap::new() };
+		let mut engine = Engine { fns: ArcMutexMap::new() };
 
 		Engine::register_default_lib(&mut engine);
 

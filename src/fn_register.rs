@@ -52,7 +52,8 @@ impl<'a, A, T, U, V, W, X, Y, Z> FnRegister<A, Z, (&'a mut T, U, V, W, X, Y)> fo
 			}
 		});
 
-		let ent = self.fns.entry(name.to_string()).or_insert(Vec::new());
+		let mut self_fns = self.fns.ex();
+		let ent = self_fns.entry(name.to_string()).or_insert(Vec::new());
 		(*ent).push(FnType::ExternalFn6(wrapped));
 	}
 }
@@ -103,8 +104,8 @@ impl<'a, A, T, U, V, W, X, Y, Z> FnRegister<A, Z, (&'a T, U, V, W, X, Y)> for En
 				_ => Err(EvalAltResult::ErrorFunctionArgMismatch(String::new())),
 			}
 		});
-
-		let ent = self.fns.entry(name.to_string()).or_insert(Vec::new());
+		let mut self_fns = self.fns.ex();
+		let ent = self_fns.entry(name.to_string()).or_insert(Vec::new());
 		(*ent).push(FnType::ExternalFn6(wrapped));
 	}
 }
@@ -146,8 +147,8 @@ impl<'a, A, T, U, V, W, X, Y> FnRegister<A, Y, (&'a mut T, U, V, W, X)> for Engi
 				_ => Err(EvalAltResult::ErrorFunctionArgMismatch(String::new())),
 			}
 		});
-
-		let ent = self.fns.entry(name.to_string()).or_insert(Vec::new());
+		let mut self_fns = self.fns.ex();
+		let ent = self_fns.entry(name.to_string()).or_insert(Vec::new());
 		(*ent).push(FnType::ExternalFn5(wrapped));
 	}
 }
@@ -190,7 +191,8 @@ impl<'a, A, T, U, V, W, X, Y> FnRegister<A, Y, (&'a T, U, V, W, X)> for Engine
 			}
 		});
 
-		let ent = self.fns.entry(name.to_string()).or_insert(Vec::new());
+		let mut self_fns = self.fns.ex();
+		let ent = self_fns.entry(name.to_string()).or_insert(Vec::new());
 		(*ent).push(FnType::ExternalFn5(wrapped));
 	}
 }
@@ -219,7 +221,8 @@ impl<'a, A, T, U, V, W, X> FnRegister<A, X, (&'a mut T, U, V, W)> for Engine
 				}
 			});
 
-		let ent = self.fns.entry(name.to_string()).or_insert(Vec::new());
+		let mut self_fns = self.fns.ex();
+		let ent = self_fns.entry(name.to_string()).or_insert(Vec::new());
 		(*ent).push(FnType::ExternalFn4(wrapped));
 	}
 }
@@ -251,7 +254,8 @@ impl<'a, A, T, U, V, W, X> FnRegister<A, X, (&'a T, U, V, W)> for Engine
 				}
 			});
 
-		let ent = self.fns.entry(name.to_string()).or_insert(Vec::new());
+		let mut self_fns = self.fns.ex();
+		let ent = self_fns.entry(name.to_string()).or_insert(Vec::new());
 		(*ent).push(FnType::ExternalFn4(wrapped));
 	}
 }
@@ -278,7 +282,8 @@ impl<'a, A, T, U, V, W> FnRegister<A, W, (&'a mut T, U, V)> for Engine
 				}
 			});
 
-		let ent = self.fns.entry(name.to_string()).or_insert(Vec::new());
+		let mut self_fns = self.fns.ex();
+		let ent = self_fns.entry(name.to_string()).or_insert(Vec::new());
 		(*ent).push(FnType::ExternalFn3(wrapped));
 	}
 }
@@ -305,7 +310,8 @@ impl<'a, A, T, U, V, W> FnRegister<A, W, (&'a T, U, V)> for Engine
 				}
 			});
 
-		let ent = self.fns.entry(name.to_string()).or_insert(Vec::new());
+		let mut self_fns = self.fns.ex();
+		let ent = self_fns.entry(name.to_string()).or_insert(Vec::new());
 		(*ent).push(FnType::ExternalFn3(wrapped));
 	}
 }
@@ -330,7 +336,8 @@ impl<'a, A, T, U, V> FnRegister<A, V, (&'a mut T, U)> for Engine
 				}
 			});
 
-		let ent = self.fns.entry(name.to_string()).or_insert(Vec::new());
+		let mut self_fns = self.fns.ex();
+		let ent = self_fns.entry(name.to_string()).or_insert(Vec::new());
 		(*ent).push(FnType::ExternalFn2(wrapped));
 	}
 }
@@ -355,7 +362,8 @@ impl<'a, A, T, U, V> FnRegister<A, V, (&'a T, U)> for Engine
 				}
 			});
 
-		let ent = self.fns.entry(name.to_string()).or_insert(Vec::new());
+		let mut self_fns = self.fns.ex();
+		let ent = self_fns.entry(name.to_string()).or_insert(Vec::new());
 		(*ent).push(FnType::ExternalFn2(wrapped));
 	}
 }
@@ -377,7 +385,8 @@ impl<'a, A, T, U> FnRegister<A, U, (&'a mut T)> for Engine
 			}
 		});
 
-		let ent = self.fns.entry(name.to_string()).or_insert(Vec::new());
+		let mut self_fns = self.fns.ex();
+		let ent = self_fns.entry(name.to_string()).or_insert(Vec::new());
 		(*ent).push(FnType::ExternalFn1(wrapped));
 	}
 }
@@ -399,7 +408,8 @@ impl<'a, A, T, U> FnRegister<A, U, (&'a T)> for Engine
 			}
 		});
 
-		let ent = self.fns.entry(name.to_string()).or_insert(Vec::new());
+		let mut self_fns = self.fns.ex();
+		let ent = self_fns.entry(name.to_string()).or_insert(Vec::new());
 		(*ent).push(FnType::ExternalFn1(wrapped));
 	}
 }
@@ -412,7 +422,8 @@ impl<A, T> FnRegister<A, T, ()> for Engine
 	{
 		let wrapped: Box<Fn() -> Result<Box<Any>, EvalAltResult>> = Box::new(move || Ok(Box::new(fun()) as Box<Any>));
 
-		let ent = self.fns.entry(name.to_string()).or_insert(Vec::new());
+		let mut self_fns = self.fns.ex();
+		let ent = self_fns.entry(name.to_string()).or_insert(Vec::new());
 		(*ent).push(FnType::ExternalFn0(wrapped));
 	}
 }
