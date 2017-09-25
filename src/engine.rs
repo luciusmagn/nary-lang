@@ -1,4 +1,4 @@
-use std::sync::{Mutex, Arc, MutexGuard};
+use std::sync::{RwLock, Arc, RwLockReadGuard, RwLockWriteGuard};
 use std::collections::HashMap;
 use std::error::Error;
 use std::borrow::Cow;
@@ -102,7 +102,7 @@ unsafe impl Send for Engine {}
 #[derive(Clone)]
 pub struct Engine
 {
-	pub fns: ArcMutexMap,
+	pub fns: ArcLockMap,
 }
 
 //pub type Scope = Vec<(String, Box<Any>)>;
@@ -126,15 +126,15 @@ impl Scope
 }
 
 #[derive(Clone)]
-pub struct ArcMutexMap(Arc<Mutex<HashMap<String, Vec<FnType>>>>);
+pub struct ArcLockMap(Arc<RwLock<HashMap<String, Vec<FnType>>>>);
 
-impl ArcMutexMap
+impl ArcLockMap
 {
 	fn new() -> Self
 	{
-		ArcMutexMap(
+		ArcLockMap(
 			Arc::new(
-				Mutex::new(
+				RwLock::new(
 					HashMap::new(
 					)
 				)
@@ -142,9 +142,14 @@ impl ArcMutexMap
 		)
 	}
 
-	pub fn ex(&self) -> MutexGuard<HashMap<String, Vec<FnType>>>
+	pub fn exr(&self) -> RwLockReadGuard<HashMap<String, Vec<FnType>>>
 	{
-		self.0.lock().unwrap()
+		self.0.read().unwrap()
+	}
+
+	pub fn exw(&self) -> RwLockWriteGuard<HashMap<String, Vec<FnType>>>
+	{
+		self.0.write().unwrap()
 	}
 }
 
@@ -160,8 +165,9 @@ impl Engine
 	           arg6: Option<&mut Box<Any>>)
 	           -> Result<Box<Any>, EvalAltResult>
 	{
-		let self_fns = self.fns.ex();
-		match self_fns.get(name)
+		let self_fns = self.fns.exr();
+		let res = self_fns.get(name).clone();
+		match res
 		{
 			Some(ref vf) =>
 			{
@@ -1246,7 +1252,6 @@ impl Engine
 			// TODO
 			Stmt::Thread(ref name, ref body) =>
  			{
-				println!("oooh, a thread detected!");
  				let name = if let &Some(ref n) = name {n.clone()} else
  				{
  				    "nameless".to_string() + &scope.threads.len().to_string()
@@ -1256,13 +1261,11 @@ impl Engine
 				let tr = thread::spawn(
 					move ||
  					{
- 						println!("actually  in thread");
 						let res = new_engine.eval_stmt(&mut Scope::new(), &*body);
 						if let Err(e) = res
 						{
 							println!("Error during threaded execution: {}", e);
 						}
-						println!("thread actually finished");
  					}
  				);
  
@@ -1364,7 +1367,8 @@ impl Engine
 			{
 				let mut msg = String::new();
 				     if e.is::<String>()  {msg = *e.downcast().unwrap();}
-				else if e.is::<&str>(){msg = e.downcast::<&str>().unwrap().to_string();}
+				else if e.is::<&str>()    {msg = e.downcast::<&str>().unwrap().to_string();}
+				else if e.is::<Cow<str>>(){msg = e.downcast::<Cow<str>>().unwrap().to_string();}
 				println!("Error when joining thread '{}': {}", name, msg);
 				if res.is_ok() {res = Err(EvalAltResult::ErrorInThread);}
 			}
@@ -1413,7 +1417,7 @@ impl Engine
 					}
 					let name = f.name.clone();
 					let local_f = f.clone();
-					let mut self_fns = self.fns.ex();
+					let mut self_fns = self.fns.exw();
 					let ent = self_fns.entry(name).or_insert(Vec::new());
 					(*ent).push(FnType::InternalFn(local_f));
 				}
@@ -1514,7 +1518,7 @@ impl Engine
 
 	pub fn new() -> Engine
 	{
-		let mut engine = Engine { fns: ArcMutexMap::new() };
+		let mut engine = Engine { fns: ArcLockMap::new() };
 
 		Engine::register_default_lib(&mut engine);
 
