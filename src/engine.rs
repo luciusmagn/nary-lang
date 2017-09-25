@@ -1,8 +1,10 @@
 use std::sync::{Mutex, Arc, MutexGuard};
 use std::collections::HashMap;
 use std::error::Error;
+use std::borrow::Cow;
 use std::boxed::Box;
 use std::any::Any;
+use std::thread;
 use std::fmt;
 
 use parser::{lex, parse, Expr, Stmt, FnDef};
@@ -24,6 +26,7 @@ pub enum EvalAltResult
 	ErrorAssignmentToUnknownLHS,
 	ErrorMismatchOutputType,
 	ErrorCantOpenScriptFile,
+	ErrorInThread,
 	InternalErrorMalformedDotExpression,
 	LoopBreak,
 	Return(Box<Any>),
@@ -59,6 +62,7 @@ impl fmt::Display for EvalAltResult
 			EvalAltResult::ErrorAssignmentToUnknownLHS => write!(f, "Assignment to an unsupported left-hand side"),
 			EvalAltResult::ErrorMismatchOutputType => write!(f, "Cast of output failed"),
 			EvalAltResult::ErrorCantOpenScriptFile => write!(f, "Cannot open script file"),
+			EvalAltResult::ErrorInThread => write!(f, "An error occured during thread execution"),
 			EvalAltResult::InternalErrorMalformedDotExpression => write!(f, "[Internal error] Unexpected expression in dot expression"),
 			EvalAltResult::LoopBreak => write!(f, "Loop broken before completion (not an error)"),
 			EvalAltResult::Return(_) => write!(f, "Function returned value (not an error)"),
@@ -90,13 +94,36 @@ pub enum FnType
 	InternalFn(FnDef),
 }
 
+/* TODO figure out how to get rid of this */
+use std::marker::Send;
+unsafe impl Send for Engine {}
+/**/
+
 #[derive(Clone)]
 pub struct Engine
 {
 	pub fns: ArcMutexMap,
 }
 
-pub type Scope = Vec<(String, Box<Any>)>;
+//pub type Scope = Vec<(String, Box<Any>)>;
+
+pub struct Scope
+{
+	symbols: Vec<(String, Box<Any>)>,
+	threads: Vec<(String, thread::JoinHandle<()>)>,
+}
+
+impl Scope
+{
+	pub fn new() -> Self
+	{
+		Scope
+		{
+			symbols: Vec::new(),
+			threads: Vec::new(),
+		}
+	}
+}
 
 #[derive(Clone)]
 pub struct ArcMutexMap(Arc<Mutex<HashMap<String, Vec<FnType>>>>);
@@ -166,7 +193,7 @@ impl Engine
 										return Err(EvalAltResult::ErrorFunctionArgMismatch(name.to_string()));
 									}
 
-									let mut new_scope: Scope = Vec::new();
+									let mut new_scope: Scope = Scope::new();
 									let result1 = self.call_fn("clone", Some(a1), None, None, None, None, None);
 									let result2 = self.call_fn("clone", Some(a2), None, None, None, None, None);
 									let result3 = self.call_fn("clone", Some(a3), None, None, None, None, None);
@@ -178,12 +205,12 @@ impl Engine
 									{
 										(Ok(r1), Ok(r2), Ok(r3), Ok(r4), Ok(r5), Ok(r6)) =>
 										{
-											new_scope.push((f.params[0].clone(), r1));
-											new_scope.push((f.params[1].clone(), r2));
-											new_scope.push((f.params[2].clone(), r3));
-											new_scope.push((f.params[3].clone(), r4));
-											new_scope.push((f.params[4].clone(), r5));
-											new_scope.push((f.params[5].clone(), r6));
+											new_scope.symbols.push((f.params[0].clone(), r1));
+											new_scope.symbols.push((f.params[1].clone(), r2));
+											new_scope.symbols.push((f.params[2].clone(), r3));
+											new_scope.symbols.push((f.params[3].clone(), r4));
+											new_scope.symbols.push((f.params[4].clone(), r5));
+											new_scope.symbols.push((f.params[5].clone(), r6));
 										},
 										_ => return Err(EvalAltResult::ErrorFunctionArgMismatch(name.to_string())),
 									}
@@ -219,7 +246,7 @@ impl Engine
 										return Err(EvalAltResult::ErrorFunctionArgMismatch(name.to_string()));
 									}
 
-									let mut new_scope: Scope = Vec::new();
+									let mut new_scope: Scope = Scope::new();
 									let result1 = self.call_fn("clone", Some(a1), None, None, None, None, None);
 									let result2 = self.call_fn("clone", Some(a2), None, None, None, None, None);
 									let result3 = self.call_fn("clone", Some(a3), None, None, None, None, None);
@@ -230,11 +257,11 @@ impl Engine
 									{
 										(Ok(r1), Ok(r2), Ok(r3), Ok(r4), Ok(r5)) =>
 										{
-											new_scope.push((f.params[0].clone(), r1));
-											new_scope.push((f.params[1].clone(), r2));
-											new_scope.push((f.params[2].clone(), r3));
-											new_scope.push((f.params[3].clone(), r4));
-											new_scope.push((f.params[4].clone(), r5));
+											new_scope.symbols.push((f.params[0].clone(), r1));
+											new_scope.symbols.push((f.params[1].clone(), r2));
+											new_scope.symbols.push((f.params[2].clone(), r3));
+											new_scope.symbols.push((f.params[3].clone(), r4));
+											new_scope.symbols.push((f.params[4].clone(), r5));
 										},
 										_ => return Err(EvalAltResult::ErrorFunctionArgMismatch(name.to_string())),
 									}
@@ -270,7 +297,7 @@ impl Engine
 										return Err(EvalAltResult::ErrorFunctionArgMismatch(name.to_string()));
 									}
 
-									let mut new_scope: Scope = Vec::new();
+									let mut new_scope: Scope = Scope::new();
 									let result1 = self.call_fn("clone", Some(a1), None, None, None, None, None);
 									let result2 = self.call_fn("clone", Some(a2), None, None, None, None, None);
 									let result3 = self.call_fn("clone", Some(a3), None, None, None, None, None);
@@ -279,10 +306,10 @@ impl Engine
 									{
 										(Ok(r1), Ok(r2), Ok(r3), Ok(r4)) =>
 										{
-											new_scope.push((f.params[0].clone(), r1));
-											new_scope.push((f.params[1].clone(), r2));
-											new_scope.push((f.params[2].clone(), r3));
-											new_scope.push((f.params[3].clone(), r4));
+											new_scope.symbols.push((f.params[0].clone(), r1));
+											new_scope.symbols.push((f.params[1].clone(), r2));
+											new_scope.symbols.push((f.params[2].clone(), r3));
+											new_scope.symbols.push((f.params[3].clone(), r4));
 										},
 										_ => return Err(EvalAltResult::ErrorFunctionArgMismatch(name.to_string())),
 									}
@@ -318,7 +345,7 @@ impl Engine
 										return Err(EvalAltResult::ErrorFunctionArgMismatch(name.to_string()));
 									}
 
-									let mut new_scope: Scope = Vec::new();
+									let mut new_scope: Scope = Scope::new();
 									let result1 = self.call_fn("clone", Some(a1), None, None, None, None, None);
 									let result2 = self.call_fn("clone", Some(a2), None, None, None, None, None);
 									let result3 = self.call_fn("clone", Some(a3), None, None, None, None, None);
@@ -326,9 +353,9 @@ impl Engine
 									{
 										(Ok(r1), Ok(r2), Ok(r3)) =>
 										{
-											new_scope.push((f.params[0].clone(), r1));
-											new_scope.push((f.params[1].clone(), r2));
-											new_scope.push((f.params[2].clone(), r3));
+											new_scope.symbols.push((f.params[0].clone(), r1));
+											new_scope.symbols.push((f.params[1].clone(), r2));
+											new_scope.symbols.push((f.params[2].clone(), r3));
 										},
 										_ => return Err(EvalAltResult::ErrorFunctionArgMismatch(name.to_string())),
 									}
@@ -364,15 +391,15 @@ impl Engine
 										return Err(EvalAltResult::ErrorFunctionArgMismatch(name.to_string()));
 									}
 
-									let mut new_scope: Scope = Vec::new();
+									let mut new_scope: Scope = Scope::new();
 									let result1 = self.call_fn("clone", Some(a1), None, None, None, None, None);
 									let result2 = self.call_fn("clone", Some(a2), None, None, None, None, None);
 									match (result1, result2)
 									{
 										(Ok(r1), Ok(r2)) =>
 										{
-											new_scope.push((f.params[0].clone(), r1));
-											new_scope.push((f.params[1].clone(), r2));
+											new_scope.symbols.push((f.params[0].clone(), r1));
+											new_scope.symbols.push((f.params[1].clone(), r2));
 										},
 										_ => return Err(EvalAltResult::ErrorFunctionArgMismatch(name.to_string())),
 									}
@@ -408,13 +435,13 @@ impl Engine
 										return Err(EvalAltResult::ErrorFunctionArgMismatch(name.to_string()));
 									}
 
-									let mut new_scope: Scope = Vec::new();
+									let mut new_scope: Scope = Scope::new();
 									let result1 = self.call_fn("clone", Some(a1), None, None, None, None, None);
 									match result1
 									{
 										Ok(r1) =>
 										{
-											new_scope.push((f.params[0].clone(), r1));
+											new_scope.symbols.push((f.params[0].clone(), r1));
 										},
 										_ => return Err(EvalAltResult::ErrorFunctionArgMismatch(name.to_string())),
 									}
@@ -450,7 +477,7 @@ impl Engine
 										return Err(EvalAltResult::ErrorFunctionArgMismatch(name.to_string()));
 									}
 
-									let mut new_scope: Scope = Vec::new();
+									let mut new_scope: Scope = Scope::new();
 									match self.eval_stmt(&mut new_scope, &*f.body)
 									{
 										Err(EvalAltResult::Return(x)) => return Ok(x),
@@ -655,7 +682,7 @@ impl Engine
 			{
 				let mut target: Option<Box<Any>> = None;
 
-				for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev()
+				for &mut (ref name, ref mut val) in &mut scope.symbols.iter_mut().rev()
 				{
 					if *id == *name
 					{
@@ -677,7 +704,7 @@ impl Engine
 				{
 					let result = self.get_dot_val_helper(scope, &mut t, dot_rhs);
 
-					for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev()
+					for &mut (ref name, ref mut val) in &mut scope.symbols.iter_mut().rev()
 					{
 						if *id == *name
 						{
@@ -704,7 +731,7 @@ impl Engine
 
 				let mut target: Option<Box<Any>> = None;
 
-				for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev()
+				for &mut (ref name, ref mut val) in &mut scope.symbols.iter_mut().rev()
 				{
 					if *id == *name
 					{
@@ -738,7 +765,7 @@ impl Engine
 				if let Some(mut t) = target
 				{
 					let result = self.get_dot_val_helper(scope, &mut t, dot_rhs);
-					for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev()
+					for &mut (ref name, ref mut val) in &mut scope.symbols.iter_mut().rev()
 					{
 						if *id == *name
 						{
@@ -831,7 +858,7 @@ impl Engine
 			{
 				let mut target: Option<Box<Any>> = None;
 
-				for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev()
+				for &mut (ref name, ref mut val) in &mut scope.symbols.iter_mut().rev()
 				{
 					if *id == *name
 					{
@@ -851,7 +878,7 @@ impl Engine
 				{
 					let result = self.set_dot_val_helper(&mut t, dot_rhs, source_val);
 
-					for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev()
+					for &mut (ref name, ref mut val) in &mut scope.symbols.iter_mut().rev()
 					{
 						if *id == *name
 						{
@@ -878,7 +905,7 @@ impl Engine
 
 				let mut target: Option<Box<Any>> = None;
 
-				for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev()
+				for &mut (ref name, ref mut val) in &mut scope.symbols.iter_mut().rev()
 				{
 					if *id == *name
 					{
@@ -912,7 +939,7 @@ impl Engine
 				if let Some(mut t) = target
 				{
 					let result = self.set_dot_val_helper(&mut t, dot_rhs, source_val);
-					for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev()
+					for &mut (ref name, ref mut val) in &mut scope.symbols.iter_mut().rev()
 					{
 						if *id == *name
 						{
@@ -941,7 +968,7 @@ impl Engine
 			Expr::CharConst(ref c) => Ok(Box::new(c.clone())),
 			Expr::Identifier(ref id) =>
 			{
-				for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev()
+				for &mut (ref name, ref mut val) in &mut scope.symbols.iter_mut().rev()
 				{
 					if *id == *name
 					{
@@ -954,7 +981,7 @@ impl Engine
 			{
 				let idx = self.eval_expr(scope, idx_raw)?;
 
-				for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev()
+				for &mut (ref name, ref mut val) in &mut scope.symbols.iter_mut().rev()
 				{
 					if *id == *name
 					{
@@ -992,7 +1019,7 @@ impl Engine
 				{
 					Expr::Identifier(ref n) =>
 					{
-						for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev()
+						for &mut (ref name, ref mut val) in &mut scope.symbols.iter_mut().rev()
 						{
 							if *n == *name
 							{
@@ -1008,7 +1035,7 @@ impl Engine
 					{
 						let idx = self.eval_expr(scope, idx_raw)?;
 
-						for &mut (ref name, ref mut val) in &mut scope.iter_mut().rev()
+						for &mut (ref name, ref mut val) in &mut scope.symbols.iter_mut().rev()
 						{
 							if *id == *name
 							{
@@ -1154,7 +1181,7 @@ impl Engine
 			Stmt::Expr(ref e) => self.eval_expr(scope, e),
 			Stmt::Block(ref b) =>
 			{
-				let prev_len = scope.len();
+				let prev_len = scope.symbols.len();
 				let mut last_result: Result<Box<Any>, EvalAltResult> = Ok(Box::new(()));
 
 				for s in b.iter()
@@ -1171,9 +1198,9 @@ impl Engine
 					}
 				}
 
-				while scope.len() > prev_len
+				while scope.symbols.len() > prev_len
 				{
-					scope.pop();
+					scope.symbols.pop();
 				}
 
 				return last_result;
@@ -1217,7 +1244,31 @@ impl Engine
 				}
 			},
 			// TODO
-			Stmt::Thread(..) => Ok(Box::new(())),
+			Stmt::Thread(ref name, ref body) =>
+ 			{
+				println!("oooh, a thread detected!");
+ 				let name = if let &Some(ref n) = name {n.clone()} else
+ 				{
+ 				    "nameless".to_string() + &scope.threads.len().to_string()
+ 				};
+ 				let body = body.clone();
+ 				let new_engine = self.clone();
+				let tr = thread::spawn(
+					move ||
+ 					{
+ 						println!("actually  in thread");
+						let res = new_engine.eval_stmt(&mut Scope::new(), &*body);
+						if let Err(e) = res
+						{
+							println!("Error during threaded execution: {}", e);
+						}
+						println!("thread actually finished");
+ 					}
+ 				);
+ 
+ 				scope.threads.push(("_thread_".to_string() + &name, tr));
+ 				Ok(Box::new(()))
+			},
 			Stmt::While(ref guard, ref body) =>
 			{
 				loop
@@ -1265,11 +1316,11 @@ impl Engine
 					&Some(ref v) =>
 					{
 						let i = self.eval_expr(scope, v)?;
-						scope.push((name.clone(), i));
+						scope.symbols.push((name.clone(), i));
 					},
 					&None =>
 					{
-						scope.push((name.clone(), Box::new(())));
+						scope.symbols.push((name.clone(), Box::new(())));
 					},
 				};
 				Ok(Box::new(()))
@@ -1303,9 +1354,42 @@ impl Engine
 
 	pub fn eval<T: Any + Clone>(&mut self, input: &str) -> Result<T, EvalAltResult>
 	{
-		let mut scope: Scope = Vec::new();
+		let mut scope: Scope = Scope::new();
 
-		self.eval_with_scope(&mut scope, input)
+		let mut res = self.eval_with_scope(&mut scope, input);
+
+		for (name, thread) in scope.threads
+		{
+			if let Err(e) = thread.join()
+			{
+				let mut msg = String::new();
+				     if e.is::<String>()  {msg = *e.downcast().unwrap();}
+				else if e.is::<&str>(){msg = e.downcast::<&str>().unwrap().to_string();}
+				println!("Error when joining thread '{}': {}", name, msg);
+				if res.is_ok() {res = Err(EvalAltResult::ErrorInThread);}
+			}
+		}
+
+		res
+	}
+
+	pub fn finalize_scope(scope: Scope) -> Result<(), EvalAltResult>
+	{
+		let mut res = Ok(());
+		for (name, thread) in scope.threads
+		{
+			if let Err(e) = thread.join()
+			{
+				let mut msg = String::new();
+				     if e.is::<String>()  {msg = *e.downcast().unwrap();}
+				else if e.is::<&str>()    {msg = e.downcast::<&str>().unwrap().to_string();}
+				else if e.is::<Cow<str>>(){msg = e.downcast::<Cow<str>>().unwrap().to_string();}
+				println!("Error when joining thread '{}': {}", name, msg);
+				if res.is_ok() {res = Err(EvalAltResult::ErrorInThread);}
+			}
+		}
+
+		res
 	}
 
 	pub fn eval_with_scope<T: Any + Clone>(&mut self, scope: &mut Scope, input: &str) -> Result<T, EvalAltResult>

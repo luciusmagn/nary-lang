@@ -2,6 +2,7 @@ print("no threads yet");
 
 thread sergei
 {
+	print("thread child");
 	let x = 1;
 	while x > 0
 	{
