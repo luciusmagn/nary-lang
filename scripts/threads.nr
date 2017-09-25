@@ -2,19 +2,18 @@ print("no threads yet");
 
 thread sergei
 {
-	let x = 1000000;
+	let x = 1;
 	while x > 0
 	{
 		x = x - 1;
-		print("thread sergei");
+		print("thread child");
 	}
-	print("sergei finished")
+	print("child finished")
 }
-let x = 1000000;
+let x = 1;
 while x > 0
 {
 	x = x - 1;
-	print("thread main");
 }
 
-print("main finished");
+print("main thread finished");

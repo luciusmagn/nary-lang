@@ -2,13 +2,51 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::any::Any;
 use std::boxed::Box;
+use std::thread;
 use std::fmt;
+use std::mem;
 
 use parser::{lex, parse, Expr, Stmt, FnDef};
 use fn_register::FnRegister;
 
 use std::ops::{Add, Sub, Mul, Div, Rem};
 use std::cmp::{Ord, Eq};
+
+/* DARK MAGIC, BITES */
+use std;
+unsafe impl std::marker::Sync for Engine {}
+unsafe impl std::marker::Sync for EvalAltResult {}
+pub trait AnyClone: Any + Clone {}
+impl<T> AnyClone for T where T: Any + Clone {}
+impl Clone for EvalAltResult
+{
+	fn clone(&self) -> Self
+	{
+		use self::EvalAltResult::*;
+		match *self
+		{
+			ErrorFunctionNotFound(ref s) => ErrorFunctionNotFound(s.clone()),
+			ErrorFunctionArgMismatch(ref s) => ErrorFunctionArgMismatch(s.clone()),
+			ErrorIndexMismatch => ErrorIndexMismatch,
+			ErrorIfGuardMismatch => ErrorIfGuardMismatch,
+			ErrorVariableNotFound(ref s) => ErrorVariableNotFound(s.clone()),
+			ErrorFunctionArityNotSupported => ErrorFunctionArityNotSupported,
+			ErrorFunctionCallNotSupported => ErrorFunctionCallNotSupported,
+			ErrorAssignmentToUnknownLHS => ErrorAssignmentToUnknownLHS,
+			ErrorMismatchOutputType => ErrorMismatchOutputType,
+			ErrorCantOpenScriptFile => ErrorCantOpenScriptFile,
+			InternalErrorMalformedDotExpression => InternalErrorMalformedDotExpression,
+			LoopBreak => LoopBreak,
+			Return(ref b) => Return(unsafe { mem::transmute_copy(b) })
+		}
+	}
+}
+struct Container<'a, T: 'a>(&'a T);
+unsafe fn extend_lifetime<'b, T>(r: Container<'b, T>) -> Container<'static, T>
+{
+	std::mem::transmute::<Container<'b, T>, Container<'static, T>>(r)
+}
+/* NO DARK MAGIC BEYOND THIS POINT */
 
 #[derive(Debug)]
 pub enum EvalAltResult
@@ -27,7 +65,6 @@ pub enum EvalAltResult
 	LoopBreak,
 	Return(Box<Any>),
 }
-
 
 impl Error for EvalAltResult
 {
@@ -1190,6 +1227,38 @@ impl Engine
 					},
 					Err(_) => Err(EvalAltResult::ErrorIfGuardMismatch),
 				}
+			},
+			Stmt::Thread(ref name, ref body) =>
+			{
+				let name = if let &Some(ref n) = name {n.clone()} else
+				{
+				    "nameless".to_string()
+				};
+
+
+				let new_engine: &'static Engine = unsafe { extend_lifetime(Container(mem::transmute_copy(self))).0 };
+				let body = body.clone();
+				let tr = thread::spawn(
+					move ||
+					{
+						println!("in thread");
+						// TODO handle any errors appearing thread properly
+						// TODO implement variable 'capturing'
+						// TODO handle evaluation result
+ 
+						//let mut new_engine: Engine = *extend_lifetime(Container(mem::transmute_copy(self))).0;
+						let engine = &*new_engine;
+						let res: Result<Box<Any>, EvalAltResult> = engine.eval_stmt(&mut Scope::new(), &body);
+						match res
+						{
+							Ok(_) => (),
+							Err(e) => println!("Error in spawned thread: {}", e),
+						};
+					}
+				);
+
+				scope.push(("_thread_".to_string() + &name, Box::new(tr)));
+				Ok(Box::new(()))
 			},
 			Stmt::While(ref guard, ref body) =>
 			{

@@ -1,4 +1,5 @@
 //! Nary - an embedded scripting language for Rust
+#![feature(type_ascription)]
 
 mod engine;
 mod fn_register;
