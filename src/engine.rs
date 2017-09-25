@@ -1216,6 +1216,8 @@ impl Engine
 					Err(_) => Err(EvalAltResult::ErrorIfGuardMismatch),
 				}
 			},
+			// TODO
+			Stmt::Thread(..) => Ok(Box::new(())),
 			Stmt::While(ref guard, ref body) =>
 			{
 				loop

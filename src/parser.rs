@@ -4,7 +4,7 @@ use std::iter::Peekable;
 use std::str::Chars;
 use std::char;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum LexError
 {
 	UnexpectedChar,
@@ -105,6 +105,7 @@ pub enum Stmt
 {
 	If(Box<Expr>, Box<Stmt>),
 	IfElse(Box<Expr>, Box<Stmt>, Box<Stmt>),
+	Thread(Option<String>, Box<Stmt>),
 	While(Box<Expr>, Box<Stmt>),
 	Var(String, Option<Box<Expr>>),
 	Block(Box<Vec<Stmt>>),
@@ -130,7 +131,7 @@ pub enum Expr
 	False,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Token
 {
 	IntConst(i64),
@@ -158,6 +159,7 @@ pub enum Token
 	Var,
 	If,
 	Else,
+	Thread,
 	While,
 	LessThan,
 	GreaterThan,
@@ -176,6 +178,7 @@ pub enum Token
 	LexErr(LexError),
 }
 
+#[derive(Clone)]
 pub struct TokenIterator<'a>
 {
 	char_stream: Peekable<Chars<'a>>,
@@ -419,6 +422,10 @@ impl<'a> Iterator for TokenIterator<'a>
 					else if out == "fn"
 					{
 						return Some(Token::Fn);
+					}
+					else if out == "thread"
+					{
+						return Some(Token::Thread);
 					}
 					else
 					{
@@ -897,6 +904,21 @@ fn parse_if<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<Stmt, ParseEr
 	}
 }
 
+fn parse_thread<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<Stmt, ParseError>
+{
+	input.next();
+
+	let name = if let Some(&Token::Identifier(ref s)) = (*input).clone().peek()
+	{
+		input.next();
+		Some(s.clone())
+	} else {None};
+
+	let body = parse_block(input)?;
+
+	Ok(Stmt::Thread(name, Box::new(body)))
+}
+
 fn parse_while<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<Stmt, ParseError>
 {
 	input.next();
@@ -992,6 +1014,7 @@ fn parse_stmt<'a>(input: &mut Peekable<TokenIterator<'a>>) -> Result<Stmt, Parse
 	{
 		Some(&Token::If) => parse_if(input),
 		Some(&Token::While) => parse_while(input),
+		Some(&Token::Thread) => parse_thread(input),
 		Some(&Token::Break) =>
 		{
 			input.next();
